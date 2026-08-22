@@ -1,0 +1,1096 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SmartPanel v3 — Admin</title>
+<script src="/socket.io/socket.io.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0d0f14;--surface:#141720;--surface2:#1c2030;--surface3:#232840;
+  --border:#ffffff0e;--border2:#ffffff18;
+  --accent:#4f8ef7;--accent2:#38d9a9;--accent3:#f59e0b;
+  --text:#e8eaf0;--muted:#6b7280;--danger:#f87171;
+  --sidebar-w:230px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;overflow:hidden}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);display:flex}
+
+/* ── LOGIN SCREEN ── */
+#login-screen{
+  position:fixed;inset:0;background:var(--bg);z-index:1000;
+  display:flex;align-items:center;justify-content:center;
+}
+#login-screen.hidden{display:none}
+.login-box{
+  background:var(--surface);border:1px solid var(--border2);
+  border-radius:16px;padding:40px 44px;width:360px;
+  box-shadow:0 24px 60px #0008;
+}
+.login-logo{font-family:'Syne',sans-serif;font-weight:800;font-size:22px;color:var(--accent);text-align:center;margin-bottom:4px}
+.login-sub{text-align:center;font-size:12px;color:var(--muted);margin-bottom:28px;letter-spacing:.5px;text-transform:uppercase}
+.login-field{margin-bottom:14px}
+.login-field label{display:block;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px}
+.login-field input{width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);border-radius:8px;padding:12px 14px;font-family:'DM Sans',sans-serif;font-size:14px;outline:none;transition:border-color .2s}
+.login-field input:focus{border-color:var(--accent)}
+.login-btn{width:100%;background:var(--accent);color:#fff;border:none;border-radius:8px;padding:13px;font-family:'Syne',sans-serif;font-weight:700;font-size:14px;cursor:pointer;margin-top:4px;transition:opacity .2s}
+.login-btn:hover{opacity:.85}
+.login-err{background:#f871711a;border:1px solid #f871714d;border-radius:6px;padding:10px 14px;font-size:12.5px;color:var(--danger);margin-top:12px;display:none}
+
+/* ── SIDEBAR ── */
+.sidebar{width:var(--sidebar-w);background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0}
+.sb-logo{padding:22px 20px 18px;border-bottom:1px solid var(--border)}
+.sb-logo .brand{font-family:'Syne',sans-serif;font-weight:800;font-size:16px;color:var(--accent)}
+.sb-logo .sub{font-size:10px;color:var(--muted);margin-top:2px;letter-spacing:1px;text-transform:uppercase}
+.sb-sec{font-size:10px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);padding:18px 20px 8px}
+.nav{display:flex;align-items:center;gap:11px;padding:10px 20px;cursor:pointer;font-size:13.5px;color:#9ca3af;border-left:3px solid transparent;transition:all .15s;user-select:none}
+.nav:hover{background:var(--surface2);color:var(--text)}
+.nav.active{background:#1a2540;color:var(--accent);border-left-color:var(--accent);font-weight:500}
+.nav .ico{font-size:15px;width:20px;text-align:center;flex-shrink:0}
+.nav .badge{margin-left:auto;color:#fff;font-size:10px;padding:1px 6px;border-radius:10px;font-weight:600;background:var(--accent)}
+.nav .badge.red{background:var(--danger)}
+.nav .badge.amber{background:var(--accent3);color:#000}
+.sb-footer{margin-top:auto;padding:16px 20px;border-top:1px solid var(--border);display:flex;align-items:center;gap:10px}
+.avatar{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;flex-shrink:0}
+.u-name{font-size:12.5px;font-weight:500}
+.u-role{font-size:11px;color:var(--muted)}
+.logout-btn{margin-left:auto;background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;padding:4px}
+.conn-bar{display:flex;align-items:center;gap:5px;font-size:10.5px;color:var(--muted);padding:8px 20px;border-top:1px solid var(--border)}
+.cdot{width:6px;height:6px;border-radius:50%;background:var(--accent2);animation:pulse 2s infinite;flex-shrink:0}
+.cdot.off{background:var(--danger);animation:none}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* ── MAIN ── */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 28px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.tb-title{font-family:'Syne',sans-serif;font-size:17px;font-weight:700}
+.tb-crumb{font-size:11.5px;color:var(--muted);margin-top:1px}
+.tb-right{display:flex;align-items:center;gap:12px}
+.pill{display:flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:5px 13px;font-size:12px;color:var(--muted)}
+.clock-el{font-size:12.5px;font-weight:500;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:5px 12px;font-family:'Syne',sans-serif}
+.content{flex:1;overflow-y:auto;padding:24px 28px}
+.content::-webkit-scrollbar{width:4px}
+.content::-webkit-scrollbar-thumb{background:#333;border-radius:2px}
+.page{display:none;animation:fi .2s ease}
+.page.active{display:block}
+@keyframes fi{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+/* ── GRIDS & CARDS ── */
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:20px}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:20px}
+.g2{display:grid;grid-template-columns:1.6fr 1fr;gap:16px;margin-bottom:20px}
+.g2b{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px 20px;position:relative;overflow:hidden}
+.stat-ico{position:absolute;right:16px;top:16px;font-size:22px;opacity:.25}
+.stat-lbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;font-weight:600}
+.stat-val{font-family:'Syne',sans-serif;font-size:28px;font-weight:800;margin:6px 0 4px;line-height:1}
+.stat-sub{font-size:11.5px;color:var(--muted)}
+.chg{font-size:11px;font-weight:600;padding:2px 7px;border-radius:10px;display:inline-block;margin-top:6px}
+.chg.up{background:#38d9a91a;color:var(--accent2)}.chg.down{background:#f871711a;color:var(--danger)}.chg.neu{background:#f59e0b1a;color:var(--accent3)}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:20px 22px;margin-bottom:16px}
+.card-title{font-family:'Syne',sans-serif;font-size:13px;font-weight:700;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between}
+.card-title a{font-family:'DM Sans',sans-serif;font-size:11px;color:var(--accent);cursor:pointer;font-weight:400}
+.tbl{width:100%;border-collapse:collapse;font-size:12.5px}
+.tbl th{text-align:left;padding:8px 10px;font-size:10.5px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;border-bottom:1px solid var(--border)}
+.tbl td{padding:10px 10px;border-bottom:1px solid var(--border)}
+.tbl tr:last-child td{border-bottom:none}
+.tbl tr:hover td{background:#ffffff03}
+.tag{font-size:10.5px;padding:2px 9px;border-radius:10px;font-weight:600;display:inline-block}
+.t-blue{background:#4f8ef71a;color:var(--accent)}.t-green{background:#38d9a91a;color:var(--accent2)}.t-amber{background:#f59e0b1a;color:var(--accent3)}.t-red{background:#f871711a;color:var(--danger)}.t-purple{background:#c084fc1a;color:#c084fc}
+.sdot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:4px}
+.sdot.on{background:var(--accent2)}.sdot.off{background:var(--danger)}.sdot.warn{background:var(--accent3)}
+
+/* ── FORMS ── */
+select,input,textarea{background:var(--surface2);border:1px solid var(--border2);color:var(--text);border-radius:7px;padding:10px 13px;font-family:'DM Sans',sans-serif;font-size:13px;outline:none;transition:border-color .2s;width:100%}
+select:focus,input:focus,textarea:focus{border-color:var(--accent)}
+textarea{resize:vertical;min-height:80px}
+.btn{background:var(--accent);color:#fff;border:none;border-radius:7px;padding:10px 20px;font-family:'Syne',sans-serif;font-weight:600;font-size:13px;cursor:pointer;transition:opacity .2s}
+.btn:hover{opacity:.85}.btn.sec{background:var(--surface2);border:1px solid var(--border2);color:var(--text)}.btn.danger{background:var(--danger)}.btn.green{background:var(--accent2);color:#000}.btn.amber{background:var(--accent3);color:#000}.btn.full{width:100%}
+.form-row{display:flex;gap:10px}
+
+/* ── LOG STREAM ── */
+.log-stream{display:flex;flex-direction:column;gap:6px;max-height:360px;overflow-y:auto}
+.log-stream::-webkit-scrollbar{width:3px}
+.log-stream::-webkit-scrollbar-thumb{background:#333;border-radius:2px}
+.log-entry{display:flex;gap:10px;padding:8px 10px;background:var(--surface2);border-radius:6px;font-size:12px;border-left:3px solid transparent;animation:si .25s ease}
+@keyframes si{from{opacity:0;transform:translateX(-6px)}to{opacity:1;transform:none}}
+.log-entry.aviso{border-left-color:var(--accent)}.log-entry.ticket{border-left-color:var(--accent3)}.log-entry.dispositivo{border-left-color:var(--accent2)}.log-entry.visitante{border-left-color:#c084fc}.log-entry.sistema{border-left-color:var(--muted)}.log-entry.agendamento{border-left-color:var(--accent3)}.log-entry.upload{border-left-color:var(--accent2)}
+.lg-time{color:var(--muted);font-size:10.5px;flex-shrink:0;margin-top:1px;min-width:110px}
+.lg-body{flex:1;line-height:1.4}
+
+/* ── QR MODAL ── */
+#qr-modal{display:none;position:fixed;inset:0;background:#000b;z-index:500;align-items:center;justify-content:center}
+#qr-modal.show{display:flex}
+.qr-box{background:var(--surface);border:1px solid var(--border2);border-radius:14px;padding:32px;text-align:center;max-width:320px;width:90%}
+.qr-box img{width:220px;height:220px;border-radius:8px;margin:16px 0}
+.qr-box .qr-title{font-family:'Syne',sans-serif;font-size:15px;font-weight:700;margin-bottom:6px}
+.qr-box .qr-sub{font-size:12px;color:var(--muted);line-height:1.6}
+
+/* ── UPLOAD ZONE ── */
+.upload-zone{border:2px dashed var(--border2);border-radius:10px;padding:28px;text-align:center;cursor:pointer;transition:border-color .2s;background:var(--surface2)}
+.upload-zone:hover,.upload-zone.drag{border-color:var(--accent);background:#1a2540}
+.upload-zone .uz-ico{font-size:32px;margin-bottom:8px}
+.upload-zone .uz-lbl{font-size:13px;color:var(--muted)}
+
+/* ── INFRA BARS ── */
+.infra-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px}
+.infra-name{font-size:12px;font-weight:600;margin-bottom:10px;display:flex;justify-content:space-between}
+.infra-bar-wrap{background:#ffffff0a;border-radius:4px;height:6px;overflow:hidden}
+.infra-fill{height:100%;border-radius:4px;transition:width 1s ease}
+.infra-fill.ok{background:var(--accent2)}.infra-fill.warn{background:var(--accent3)}.infra-fill.crit{background:var(--danger)}
+.infra-pct{font-size:22px;font-weight:800;font-family:'Syne',sans-serif;margin-top:8px}
+
+/* ── EMAIL LOG ── */
+.email-entry{padding:10px 14px;background:var(--surface2);border-radius:8px;margin-bottom:8px;border-left:3px solid var(--accent)}
+.email-entry.critico{border-left-color:var(--danger)}
+.email-entry.sucesso{border-left-color:var(--accent2)}
+.email-from{font-size:11px;color:var(--muted);margin-bottom:4px}
+.email-subj{font-size:13px;font-weight:600}
+.email-body{font-size:11.5px;color:var(--muted);margin-top:4px}
+
+/* ── SCHEDULE ── */
+.schedule-card{background:var(--surface2);border-radius:8px;padding:12px 16px;margin-bottom:8px;display:flex;align-items:center;gap:12px}
+.sc-time{font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:var(--accent);min-width:80px}
+.sc-body{flex:1}
+.sc-title{font-size:13px;font-weight:600}
+.sc-setor{font-size:11px;color:var(--muted);margin-top:2px}
+.sc-actions{display:flex;gap:6px}
+
+/* ── TOAST ── */
+#toasts{position:fixed;bottom:24px;right:24px;display:flex;flex-direction:column;gap:8px;z-index:999;pointer-events:none}
+.toast{background:var(--surface);border:1px solid var(--border2);border-radius:10px;padding:12px 16px;font-size:13px;display:flex;align-items:center;gap:10px;animation:ti .3s ease;box-shadow:0 8px 32px #0008;min-width:240px;max-width:340px}
+@keyframes ti{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.toast-ico{font-size:18px;flex-shrink:0}
+.t-title{font-weight:600;font-size:12.5px}
+.t-msg{font-size:11.5px;color:var(--muted);margin-top:1px}
+.toast.t-ok{border-left:3px solid var(--accent2)}.toast.t-warn{border-left:3px solid var(--accent3)}.toast.t-err{border-left:3px solid var(--danger)}.toast.t-info{border-left:3px solid var(--accent)}
+</style>
+</head>
+<body>
+
+<!-- ══ LOGIN ══ -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">⬡ SmartPanel</div>
+    <div class="login-sub">Painel Inteligente v3.0</div>
+    <div class="login-field">
+      <label>E-mail</label>
+      <input id="l-email" type="email" placeholder="admin@smartpanel.com" value="admin@smartpanel.com">
+    </div>
+    <div class="login-field">
+      <label>Senha</label>
+      <input id="l-senha" type="password" placeholder="••••••••" value="admin123">
+    </div>
+    <button class="login-btn" onclick="fazerLogin()">Entrar no Sistema</button>
+    <div class="login-err" id="login-err"></div>
+    <div style="text-align:center;margin-top:14px;font-size:11px;color:var(--muted)">
+      admin@smartpanel.com / admin123<br>ti@smartpanel.com / ti123
+    </div>
+  </div>
+</div>
+
+<!-- ══ APP ══ -->
+<nav class="sidebar">
+  <div class="sb-logo">
+    <div class="brand">⬡ SmartPanel</div>
+    <div class="sub">Painel Inteligente v3.0</div>
+  </div>
+
+  <div class="sb-sec">Visão Geral</div>
+  <div class="nav active" onclick="goPage('admin',this)"><span class="ico">⊞</span>Dashboard</div>
+
+  <div class="sb-sec">Setores</div>
+  <div class="nav" onclick="goPage('recepcao',this)"><span class="ico">🪟</span>Recepção</div>
+  <div class="nav" onclick="goPage('ti',this)"><span class="ico">🖥</span>TI<span class="badge red" id="badge-ti">0</span></div>
+  <div class="nav" onclick="goPage('escritorio',this)"><span class="ico">📁</span>Escritório</div>
+  <div class="nav" onclick="goPage('adm',this)"><span class="ico">📊</span>Administrativo</div>
+  <div class="nav" onclick="goPage('rh',this)"><span class="ico">👥</span>RH</div>
+
+  <div class="sb-sec">Controle</div>
+  <div class="nav" onclick="goPage('avisos',this)"><span class="ico">📢</span>Avisos</div>
+  <div class="nav" onclick="goPage('tickets',this)"><span class="ico">🎫</span>Tickets<span class="badge amber" id="badge-tickets">0</span></div>
+  <div class="nav" onclick="goPage('visitantes',this)"><span class="ico">👤</span>Visitantes</div>
+  <div class="nav" onclick="goPage('agendamentos',this)"><span class="ico">⏰</span>Agendamentos</div>
+  <div class="nav" onclick="goPage('uploads',this)"><span class="ico">🖼</span>Uploads</div>
+  <div class="nav" onclick="goPage('devices',this)"><span class="ico">📺</span>TV Boxes</div>
+  <div class="nav" onclick="goPage('fila',this)"><span class="ico">🎫</span>Fila de Atendimento</div>
+  <div class="nav" onclick="goPage('emails',this)"><span class="ico">📧</span>Emails Enviados</div>
+  <div class="nav" onclick="goPage('logs',this)"><span class="ico">📋</span>Auditoria</div>
+
+  <div class="conn-bar">
+    <span class="cdot" id="cdot"></span>
+    <span id="conn-lbl">Conectando...</span>
+  </div>
+  <div class="sb-footer">
+    <div class="avatar" id="av-initials">AD</div>
+    <div><div class="u-name" id="u-nome">—</div><div class="u-role" id="u-role">—</div></div>
+    <button class="logout-btn" onclick="logout()" title="Sair">↩</button>
+  </div>
+</nav>
+
+<div class="main">
+  <div class="topbar">
+    <div><div class="tb-title" id="pg-title">Dashboard</div><div class="tb-crumb" id="pg-crumb">Início</div></div>
+    <div class="tb-right">
+      <div class="pill"><span class="sdot on"></span><span id="tvs-count">0</span> TVs online</div>
+      <div class="clock-el" id="clock">--:--:--</div>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- DASHBOARD -->
+    <div class="page active" id="page-admin">
+      <div class="g4">
+        <div class="stat"><div class="stat-ico">📺</div><div class="stat-lbl">TVs Online</div><div class="stat-val" id="s-tvs" style="color:var(--accent2)">—</div><div class="stat-sub">dispositivos</div><span class="chg up">em tempo real</span></div>
+        <div class="stat"><div class="stat-ico">🎫</div><div class="stat-lbl">Tickets Abertos</div><div class="stat-val" id="s-tickets" style="color:var(--accent3)">—</div><div class="stat-sub">aguardando</div><span class="chg neu" id="s-criticos">—</span></div>
+        <div class="stat"><div class="stat-ico">👤</div><div class="stat-lbl">Visitantes Hoje</div><div class="stat-val" id="s-visitors" style="color:var(--accent)">—</div><div class="stat-sub">registrados</div><span class="chg up">hoje</span></div>
+        <div class="stat"><div class="stat-ico">⚠</div><div class="stat-lbl">Alertas Críticos</div><div class="stat-val" id="s-alerts" style="color:var(--danger)">—</div><div class="stat-sub">alta prioridade</div><span class="chg down">atenção</span></div>
+      </div>
+      <div class="g2">
+        <div class="card" style="margin-bottom:0"><div class="card-title">Tickets Recentes<a onclick="goPage('tickets',document.querySelectorAll('.nav')[9])">ver todos →</a></div><div id="tickets-mini"></div></div>
+        <div class="card" style="margin-bottom:0"><div class="card-title">TV Boxes<a onclick="goPage('devices',document.querySelectorAll('.nav')[13])">gerenciar →</a></div><table class="tbl"><thead><tr><th>Nome</th><th>Setor</th><th>Status</th></tr></thead><tbody id="devices-mini"></tbody></table></div>
+      </div>
+    </div>
+
+    <!-- RECEPÇÃO -->
+    <div class="page" id="page-recepcao">
+      <div class="g4">
+        <div class="stat"><div class="stat-ico">👤</div><div class="stat-lbl">Total</div><div class="stat-val" id="rv-t" style="color:var(--accent)">—</div><span class="chg up">registrados</span></div>
+        <div class="stat"><div class="stat-ico">⏳</div><div class="stat-lbl">Aguardando</div><div class="stat-val" id="rv-w" style="color:var(--accent3)">—</div><span class="chg neu">na fila</span></div>
+        <div class="stat"><div class="stat-ico">✅</div><div class="stat-lbl">Liberados</div><div class="stat-val" id="rv-d" style="color:var(--accent2)">—</div><span class="chg up">atendidos</span></div>
+        <div class="stat"><div class="stat-ico">💬</div><div class="stat-lbl">Aviso TV</div><div class="stat-val" style="font-size:11px;font-weight:400;margin-top:8px" id="av-recepcao">—</div></div>
+      </div>
+      <div class="g2b">
+        <div class="card" style="margin-bottom:0">
+          <div class="card-title">Registrar Visitante c/ QR Code</div>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <input id="vn" placeholder="Nome completo">
+            <input id="ve" placeholder="Empresa / Procedência">
+            <input id="vd" placeholder="Destino (TI, RH, Compras...)">
+            <div class="form-row">
+              <button class="btn green full" onclick="registrarVisitanteQR()">📱 Gerar QR Code</button>
+              <button class="btn sec full" onclick="registrarVisitanteSimples()">➕ Só registrar</button>
+            </div>
+          </div>
+        </div>
+        <div class="card" style="margin-bottom:0">
+          <div class="card-title">Visitantes de Hoje</div>
+          <table class="tbl"><thead><tr><th>Nome</th><th>Destino</th><th>Entrada</th><th>Status</th></tr></thead><tbody id="visitantes-tbl"></tbody></table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TI -->
+    <div class="page" id="page-ti">
+      <div class="g4">
+        <div class="stat"><div class="stat-ico">🎫</div><div class="stat-lbl">Tickets TI</div><div class="stat-val" id="ti-t" style="color:var(--danger)">—</div><span class="chg down">abertos</span></div>
+        <div class="stat"><div class="stat-ico">🌐</div><div class="stat-lbl">Uptime</div><div class="stat-val" style="color:var(--accent)">99<span style="font-size:14px">%</span></div><span class="chg up">últimas 24h</span></div>
+        <div class="stat"><div class="stat-ico">📡</div><div class="stat-lbl">Devices</div><div class="stat-val" style="color:var(--text)">84</div><span class="chg neu">na rede</span></div>
+        <div class="stat"><div class="stat-ico">💬</div><div class="stat-lbl">Aviso TV</div><div class="stat-val" style="font-size:11px;font-weight:400;margin-top:8px" id="av-ti">—</div></div>
+      </div>
+      <div class="g3">
+        <div class="infra-card"><div class="infra-name">🖧 CPU Servidor<span id="cpu-c" style="color:var(--accent2);font-size:11px">●</span></div><div class="infra-bar-wrap"><div class="infra-fill ok" id="cpu-b" style="width:42%"></div></div><div class="infra-pct" id="cpu-p" style="color:var(--accent2)">42%</div></div>
+        <div class="infra-card"><div class="infra-name">🌡 RAM<span id="ram-c" style="color:var(--danger);font-size:11px">●</span></div><div class="infra-bar-wrap"><div class="infra-fill crit" id="ram-b" style="width:91%"></div></div><div class="infra-pct" id="ram-p" style="color:var(--danger)">91%</div></div>
+        <div class="infra-card"><div class="infra-name">💾 Disco<span id="disk-c" style="color:var(--accent3);font-size:11px">●</span></div><div class="infra-bar-wrap"><div class="infra-fill warn" id="disk-b" style="width:78%"></div></div><div class="infra-pct" id="disk-p" style="color:var(--accent3)">78%</div></div>
+      </div>
+      <div class="card"><div class="card-title">Chamados TI</div><div id="ti-tickets"></div></div>
+    </div>
+
+    <!-- ESCRITÓRIO / ADM / RH genéricos -->
+    <div class="page" id="page-escritorio">
+      <div class="g4">
+        <div class="stat"><div class="stat-ico">🎯</div><div class="stat-lbl">Meta Mensal</div><div class="stat-val" style="color:var(--accent2)">76<span style="font-size:14px">%</span></div><span class="chg up">no prazo</span></div>
+        <div class="stat"><div class="stat-ico">📄</div><div class="stat-lbl">Docs Pendentes</div><div class="stat-val" style="color:var(--accent3)">9</div><span class="chg neu">aprovação</span></div>
+        <div class="stat"><div class="stat-ico">📅</div><div class="stat-lbl">Reuniões Hoje</div><div class="stat-val" style="color:var(--accent)">3</div><span class="chg neu">14h·15h·17h</span></div>
+        <div class="stat"><div class="stat-ico">💬</div><div class="stat-lbl">Aviso TV</div><div class="stat-val" style="font-size:11px;font-weight:400;margin-top:8px" id="av-escritorio">—</div></div>
+      </div>
+      <div class="card"><div class="card-title">Tickets do Escritório</div><div id="esc-tickets"></div></div>
+    </div>
+
+    <div class="page" id="page-adm">
+      <div class="g4">
+        <div class="stat"><div class="stat-ico">💰</div><div class="stat-lbl">Receita</div><div class="stat-val" style="color:var(--accent2);font-size:22px">R$ 84k</div><span class="chg up">+8%</span></div>
+        <div class="stat"><div class="stat-ico">📉</div><div class="stat-lbl">Despesas</div><div class="stat-val" style="color:var(--danger);font-size:22px">R$ 51k</div><span class="chg down">+3%</span></div>
+        <div class="stat"><div class="stat-ico">📃</div><div class="stat-lbl">Contratos</div><div class="stat-val" style="color:var(--accent)">17</div><span class="chg neu">3 a vencer</span></div>
+        <div class="stat"><div class="stat-ico">💬</div><div class="stat-lbl">Aviso TV</div><div class="stat-val" style="font-size:11px;font-weight:400;margin-top:8px" id="av-administrativo">—</div></div>
+      </div>
+      <div class="card"><div class="card-title">Tickets Administrativos</div><div id="adm-tickets"></div></div>
+    </div>
+
+    <div class="page" id="page-rh">
+      <div class="g4">
+        <div class="stat"><div class="stat-ico">👤</div><div class="stat-lbl">Funcionários</div><div class="stat-val" style="color:var(--accent)">67</div><span class="chg up">+2 mês</span></div>
+        <div class="stat"><div class="stat-ico">🎂</div><div class="stat-lbl">Aniversários</div><div class="stat-val" style="color:var(--accent3)">3</div><span class="chg neu">semana</span></div>
+        <div class="stat"><div class="stat-ico">🌴</div><div class="stat-lbl">Férias</div><div class="stat-val" style="color:var(--accent2)">5</div><span class="chg neu">retornam maio</span></div>
+        <div class="stat"><div class="stat-ico">💬</div><div class="stat-lbl">Aviso TV</div><div class="stat-val" style="font-size:11px;font-weight:400;margin-top:8px" id="av-rh">—</div></div>
+      </div>
+    </div>
+
+    <!-- AVISOS -->
+    <div class="page" id="page-avisos">
+      <div class="g2b">
+        <div class="card" style="margin-bottom:0">
+          <div class="card-title">Enviar Aviso</div>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <select id="av-setor"><option value="recepcao">🪟 Recepção</option><option value="ti">🖥 TI</option><option value="escritorio">📁 Escritório</option><option value="administrativo">📊 Administrativo</option><option value="rh">👥 RH</option></select>
+            <textarea id="av-msg" placeholder="Mensagem que aparecerá na TV..."></textarea>
+            <div class="form-row">
+              <button class="btn full" onclick="enviarAviso()">📤 Enviar ao Setor</button>
+              <button class="btn danger full" onclick="enviarBroadcast()">📡 Broadcast</button>
+            </div>
+          </div>
+        </div>
+        <div class="card" style="margin-bottom:0"><div class="card-title">Avisos Atuais</div><div id="avisos-lista"></div></div>
+      </div>
+    </div>
+
+    <!-- TICKETS -->
+    <div class="page" id="page-tickets">
+      <div style="display:flex;justify-content:flex-end;margin-bottom:14px"><button class="btn" onclick="toggleForm('ticket-form')">+ Novo Ticket</button></div>
+      <div class="card" id="ticket-form" style="display:none">
+        <div class="card-title">Novo Ticket</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <input id="t-desc" placeholder="Descrição" style="grid-column:span 2">
+          <select id="t-setor"><option value="ti">TI</option><option value="recepcao">Recepção</option><option value="escritorio">Escritório</option><option value="administrativo">Administrativo</option><option value="rh">RH</option></select>
+          <select id="t-prio"><option value="alta">Alta</option><option value="media">Média</option><option value="baixa">Baixa</option></select>
+          <input id="t-sol" placeholder="Solicitante" style="grid-column:span 2">
+          <button class="btn green" style="grid-column:span 2" onclick="abrirTicket()">✓ Abrir Ticket</button>
+        </div>
+      </div>
+      <div class="card"><div class="card-title">Todos os Tickets</div><table class="tbl"><thead><tr><th>#</th><th>Descrição</th><th>Setor</th><th>Prioridade</th><th>Status</th><th>Ação</th></tr></thead><tbody id="tickets-tbl"></tbody></table></div>
+    </div>
+
+    <!-- VISITANTES -->
+    <div class="page" id="page-visitantes">
+      <div class="card"><div class="card-title">Visitantes de Hoje</div><table class="tbl"><thead><tr><th>Nome</th><th>Empresa</th><th>Destino</th><th>Entrada</th><th>Saída</th><th>Status</th></tr></thead><tbody id="visitantes-full"></tbody></table></div>
+    </div>
+
+    <!-- AGENDAMENTOS -->
+    <div class="page" id="page-agendamentos">
+      <div style="display:flex;justify-content:flex-end;margin-bottom:14px"><button class="btn" onclick="toggleForm('ag-form')">+ Novo Agendamento</button></div>
+      <div class="card" id="ag-form" style="display:none">
+        <div class="card-title">Novo Agendamento</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <select id="ag-setor"><option value="recepcao">Recepção</option><option value="ti">TI</option><option value="escritorio">Escritório</option><option value="administrativo">Administrativo</option><option value="rh">RH</option></select>
+          <input id="ag-titulo" placeholder="Título (ex: Horário de Almoço)">
+          <textarea id="ag-conteudo" placeholder="Conteúdo do aviso..." style="grid-column:span 2"></textarea>
+          <input id="ag-ini" type="time" placeholder="Início">
+          <input id="ag-fim" type="time" placeholder="Fim">
+          <div style="grid-column:span 2;font-size:11px;color:var(--muted)">Dias (padrão: seg–sex)</div>
+          <input id="ag-dias" value="1,2,3,4,5" placeholder="0=dom,1=seg...6=sab" style="grid-column:span 2">
+          <button class="btn amber" style="grid-column:span 2" onclick="criarAgendamento()">⏰ Criar Agendamento</button>
+        </div>
+      </div>
+      <div class="card"><div class="card-title">Agendamentos Configurados</div><div id="agendamentos-lista"></div></div>
+    </div>
+
+    <!-- UPLOADS -->
+    <div class="page" id="page-uploads">
+      <div class="g2b">
+        <div class="card" style="margin-bottom:0">
+          <div class="card-title">Enviar Imagem / Logo</div>
+          <div class="upload-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
+            <div class="uz-ico">🖼</div>
+            <div class="uz-lbl">Clique ou arraste aqui<br><span style="font-size:11px">JPG, PNG, SVG — máx 5MB</span></div>
+          </div>
+          <input type="file" id="file-input" accept="image/*" style="display:none" onchange="handleFileSelect(this)">
+          <div style="display:flex;flex-direction:column;gap:10px;margin-top:12px">
+            <input id="up-nome" placeholder="Nome da imagem (opcional)">
+            <select id="up-setor"><option value="">Geral (todos)</option><option value="recepcao">Recepção</option><option value="ti">TI</option><option value="escritorio">Escritório</option><option value="administrativo">Administrativo</option><option value="rh">RH</option></select>
+            <select id="up-tipo"><option value="imagem">Imagem</option><option value="logo">Logo</option><option value="banner">Banner</option></select>
+            <button class="btn full" id="btn-upload" onclick="fazerUpload()" disabled>☁ Enviar</button>
+          </div>
+        </div>
+        <div class="card" style="margin-bottom:0"><div class="card-title">Uploads Recentes</div><div id="uploads-lista"></div></div>
+      </div>
+    </div>
+
+    <!-- DEVICES -->
+    <div class="page" id="page-devices">
+      <div class="card"><div class="card-title">TV Boxes Conectadas</div><table class="tbl"><thead><tr><th>Nome</th><th>Setor</th><th>IP</th><th>Conectado em</th><th>Status</th></tr></thead><tbody id="devices-full"></tbody></table></div>
+      <div class="card"><div class="card-title">Como conectar uma TV</div><div style="font-size:13px;color:var(--muted);line-height:1.9">Abra no TV Box:<br><code style="background:var(--surface2);padding:4px 10px;border-radius:5px;color:var(--accent);font-size:12px">http://IP_SERVIDOR:3000/tv?setor=recepcao&token=SEU_TOKEN_JWT</code><br>Troque o setor: recepcao | ti | escritorio | administrativo | rh</div></div>
+    </div>
+
+    <!-- EMAILS -->
+    <div class="page" id="page-emails">
+      <div class="card"><div class="card-title">E-mails Enviados (Simulados)</div><div id="emails-lista"></div></div>
+    </div>
+
+
+    <!-- FILA -->
+    <div class="page" id="page-fila">
+      <div class="section-hdr">
+        <div><div class="section-title">🎫 Fila de Atendimento</div><div class="section-sub">Emitir senhas e chamar para guichê</div></div>
+        <a href="/fila" target="_blank" class="btn sec" style="text-decoration:none;padding:8px 16px;font-size:12px">📺 Abrir TV Pública</a>
+      </div>
+      <div class="g3" style="margin-bottom:16px">
+        <div class="stat"><div class="stat-ico">⏳</div><div class="stat-lbl">Aguardando</div><div class="stat-val" id="f-wait" style="color:var(--accent3)">0</div></div>
+        <div class="stat"><div class="stat-ico">💬</div><div class="stat-lbl">Em Atendimento</div><div class="stat-val" id="f-atend" style="color:var(--accent2)">0</div></div>
+        <div class="stat"><div class="stat-ico">✅</div><div class="stat-lbl">Total do Dia</div><div class="stat-val" id="f-total" style="color:var(--accent)">0</div></div>
+      </div>
+      <div class="g2b">
+        <div class="card" style="margin-bottom:0">
+          <div class="card-title">Emitir Nova Senha</div>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <select id="f-prefixo"><option value="A">A — Geral</option><option value="P">P — Prioritário</option><option value="G">G — Agendado</option></select>
+            <button class="btn green full" onclick="emitirSenha()">🎫 Emitir Senha</button>
+          </div>
+          <div style="margin-top:16px">
+            <div class="card-title" style="margin-bottom:10px">Chamar Próxima</div>
+            <div style="display:flex;gap:8px">
+              <select id="f-guiche" style="flex:1"><option>Guichê 1</option><option>Guichê 2</option><option>Guichê 3</option></select>
+              <select id="f-pref-chamar" style="flex:1"><option value="A">Geral (A)</option><option value="P">Prioritário (P)</option><option value="G">Agendado (G)</option></select>
+              <button class="btn full" onclick="chamarProxima()" style="flex:1">📣 Chamar</button>
+            </div>
+          </div>
+          <button class="btn danger full" style="margin-top:12px" onclick="resetarFila()">🗑 Resetar Fila do Dia</button>
+        </div>
+        <div class="card" style="margin-bottom:0">
+          <div class="card-title">Senhas Aguardando</div>
+          <div id="fila-admin-list"><div style="color:var(--muted);font-size:13px">Fila vazia.</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- LOGS -->
+    <div class="page" id="page-logs">
+      <div class="card"><div class="card-title">Log de Auditoria em Tempo Real<a onclick="limparUI()">limpar</a></div><div class="log-stream" id="log-stream"></div></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- QR MODAL -->
+<div id="qr-modal">
+  <div class="qr-box">
+    <div class="qr-title">📱 QR Code do Visitante</div>
+    <div class="qr-sub" id="qr-info">—</div>
+    <img id="qr-img" src="" alt="QR Code">
+    <div style="font-size:11px;color:var(--muted)" id="qr-url">—</div>
+    <button class="btn sec full" style="margin-top:12px" onclick="document.getElementById('qr-modal').classList.remove('show')">Fechar</button>
+  </div>
+</div>
+
+<div id="toasts"></div>
+
+<script>
+// ─── AUTH ────────────────────────────────────────
+let TOKEN = localStorage.getItem('sp_token');
+let USER  = JSON.parse(localStorage.getItem('sp_user') || 'null');
+let socket = null;
+
+async function fazerLogin() {
+  const email = document.getElementById('l-email').value.trim();
+  const senha = document.getElementById('l-senha').value;
+  const errEl = document.getElementById('login-err');
+  errEl.style.display = 'none';
+
+  try {
+    const r = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, senha }),
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.erro);
+
+    TOKEN = d.token;
+    USER  = d.usuario;
+    localStorage.setItem('sp_token', TOKEN);
+    localStorage.setItem('sp_user', JSON.stringify(USER));
+
+    document.getElementById('login-screen').classList.add('hidden');
+    initApp();
+  } catch (e) {
+    errEl.textContent = e.message;
+    errEl.style.display = 'block';
+  }
+}
+
+// Enter no login
+document.getElementById('l-senha').addEventListener('keydown', e => { if(e.key === 'Enter') fazerLogin(); });
+
+function logout() {
+  localStorage.removeItem('sp_token');
+  localStorage.removeItem('sp_user');
+  socket?.disconnect();
+  location.reload();
+}
+
+// ─── INIT ────────────────────────────────────────
+function initApp() {
+  // Preencher user na sidebar
+  if (USER) {
+    setText('u-nome', USER.nome);
+    setText('u-role', USER.role.toUpperCase());
+    setText('av-initials', USER.nome.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase());
+  }
+
+  // Socket com JWT
+  socket = io({ auth: { token: TOKEN }, query: { setor: 'admin', tipo: 'admin', nome: USER?.nome || 'Admin' } });
+
+  socket.on('connect', () => { setConn(true); });
+  socket.on('disconnect', () => { setConn(false); });
+  socket.on('connect_error', (e) => {
+    if (e.message === 'TOKEN_REQUIRED' || e.message === 'TOKEN_INVALID') logout();
+  });
+
+  socket.on('snapshot', applySnapshot);
+  socket.on('devices:update', (d) => { appState.dispositivos = d; renderDevices(d); updateTVCount(d); });
+  socket.on('aviso:novo', ({ setor, msg }) => { appState.avisos[setor] = msg; renderAvisoDisplay(); renderAvisosLista(); toast('info', `📢 Aviso → ${cap(setor)}`, msg.slice(0,50)); });
+  socket.on('ticket:criado', (t) => toast('warn', `🎫 Ticket #${t.id}`, t.desc.slice(0,50)));
+  socket.on('tickets:update', (list) => { appState.tickets = list; renderTickets(); updateBadges(); });
+  socket.on('visitantes:update', (list) => { appState.visitantes = list; renderVisitantes(); });
+  socket.on('metricas:update', (m) => updateBars(m.ti));
+  socket.on('logs:entry', (log) => prependLog(log));
+  socket.on('upload:novo', () => carregarUploads());
+}
+
+// Verificar se já logado
+if (TOKEN && USER) {
+  document.getElementById('login-screen').classList.add('hidden');
+  initApp();
+}
+
+// ─── ESTADO ──────────────────────────────────────
+const appState = { avisos:{}, tickets:[], visitantes:[], dispositivos:{}, agendamentos:[], uploads:[], emails:[] };
+
+function applySnapshot(d) {
+  appState.avisos       = d.avisos || {};
+  appState.tickets      = d.tickets || [];
+  appState.visitantes   = d.visitantes || [];
+  appState.dispositivos = d.dispositivos || {};
+  appState.agendamentos = d.agendamentos || [];
+  if (d.stats) updateStats(d.stats);
+  renderAll();
+  carregarUploads();
+  carregarEmails();
+}
+
+function renderAll() {
+  renderDevices(appState.dispositivos);
+  renderTickets();
+  renderVisitantes();
+  renderAvisoDisplay();
+  renderAvisosLista();
+  renderAgendamentos();
+  updateBadges();
+}
+
+// ─── STATS ───────────────────────────────────────
+function updateStats(s) {
+  setText('s-tvs', s.tvsOnline ?? '—');
+  setText('s-tickets', s.ticketsAbertos ?? '—');
+  setText('s-visitors', s.visitantesHoje ?? '—');
+  setText('s-alerts', s.alertasCriticos ?? '—');
+  setText('s-criticos', `${s.alertasCriticos ?? 0} críticos`);
+  setText('tvs-count', s.tvsOnline ?? 0);
+}
+
+function updateTVCount(devs) {
+  const n = Object.values(devs).filter(d=>d.online).length;
+  setText('tvs-count', n); setText('s-tvs', n);
+}
+
+function updateBadges() {
+  const ti  = appState.tickets.filter(t=>t.setor==='ti'&&t.status!=='resolvido').length;
+  const all = appState.tickets.filter(t=>t.status!=='resolvido').length;
+  setText('badge-ti', ti); setText('badge-tickets', all);
+  setText('ti-t', ti);
+}
+
+// ─── TICKETS ─────────────────────────────────────
+function renderTickets() {
+  // Mini
+  const mini = document.getElementById('tickets-mini');
+  if (mini) mini.innerHTML = appState.tickets.slice(0,5).map(t => `
+    <div style="display:flex;align-items:center;gap:9px;padding:8px 0;border-bottom:1px solid var(--border);font-size:12.5px">
+      <span style="color:var(--muted);font-size:11px;width:44px">#${t.id}</span>
+      <span class="sdot ${t.status==='resolvido'?'on':t.status==='andamento'?'warn':'off'}"></span>
+      <span style="flex:1">${t.desc}</span>
+      <span class="tag ${sTag(t.setor)}">${t.setor.slice(0,3).toUpperCase()}</span>
+    </div>`).join('');
+
+  // Full table
+  const tbl = document.getElementById('tickets-tbl');
+  if (tbl) tbl.innerHTML = appState.tickets.map(t => `
+    <tr>
+      <td style="font-family:monospace;font-size:11px">#${t.id}</td>
+      <td>${t.desc}</td>
+      <td><span class="tag ${sTag(t.setor)}">${cap(t.setor)}</span></td>
+      <td><span class="tag ${pTag(t.prioridade)}">${cap(t.prioridade)}</span></td>
+      <td><span class="tag ${stTag(t.status)}">${cap(t.status)}</span></td>
+      <td>${t.status!=='resolvido'?`<button class="btn sec" style="padding:4px 10px;font-size:11px" onclick="resolverTicket(${t.id})">✓</button>`:'—'}</td>
+    </tr>`).join('');
+
+  // Por setor
+  renderSectorTickets('ti-tickets', 'ti');
+  renderSectorTickets('esc-tickets', 'escritorio');
+  renderSectorTickets('adm-tickets', 'administrativo');
+}
+
+function renderSectorTickets(id, setor) {
+  const el = document.getElementById(id); if(!el) return;
+  const list = appState.tickets.filter(t=>t.setor===setor);
+  if (!list.length) { el.innerHTML=`<div style="color:var(--muted);font-size:13px;padding:8px 0">Nenhum ticket para este setor.</div>`; return; }
+  el.innerHTML = `<table class="tbl"><thead><tr><th>#</th><th>Descrição</th><th>Prioridade</th><th>Status</th><th></th></tr></thead><tbody>
+    ${list.map(t=>`<tr>
+      <td style="font-family:monospace;font-size:11px">#${t.id}</td>
+      <td>${t.desc}</td>
+      <td><span class="tag ${pTag(t.prioridade)}">${cap(t.prioridade)}</span></td>
+      <td><span class="tag ${stTag(t.status)}">${cap(t.status)}</span></td>
+      <td>${t.status!=='resolvido'?`<button class="btn sec" style="padding:4px 8px;font-size:11px" onclick="resolverTicket(${t.id})">✓</button>`:'—'}</td>
+    </tr>`).join('')}</tbody></table>`;
+}
+
+function abrirTicket() {
+  const desc = document.getElementById('t-desc').value.trim();
+  const setor = document.getElementById('t-setor').value;
+  const prioridade = document.getElementById('t-prio').value;
+  const solicitante = document.getElementById('t-sol').value.trim();
+  if (!desc) return toast('err','Campo vazio','Informe a descrição');
+  socket.emit('ticket:novo', { desc, setor, prioridade, solicitante: solicitante||USER?.nome });
+  document.getElementById('t-desc').value = '';
+  document.getElementById('t-sol').value = '';
+  toast('ok','🎫 Ticket aberto', desc.slice(0,50));
+}
+
+function resolverTicket(id) {
+  socket.emit('ticket:status', { id, status:'resolvido', autor:USER?.nome });
+  toast('ok','✅ Resolvido', `Ticket #${id}`);
+}
+
+// ─── VISITANTES ──────────────────────────────────
+function renderVisitantes() {
+  const v = appState.visitantes;
+  setText('rv-t', v.length);
+  setText('rv-w', v.filter(x=>x.status==='aguardando').length);
+  setText('rv-d', v.filter(x=>x.status==='liberado').length);
+
+  const tbl = (id) => {
+    const el = document.getElementById(id); if(!el) return;
+    el.innerHTML = v.map(x => `
+      <tr>
+        <td>${x.nome}</td>
+        ${id==='visitantes-full'?`<td style="color:var(--muted)">${x.empresa||'—'}</td>`:''}
+        <td>${x.destino}</td>
+        <td style="color:var(--muted);font-size:12px">${x.entrada}</td>
+        ${id==='visitantes-full'?`<td style="color:var(--muted);font-size:12px">${x.saida||'—'}</td>`:''}
+        <td>
+          <select onchange="socket.emit('visitante:status',{id:${x.id},status:this.value})" style="padding:3px 6px;font-size:11px;width:auto">
+            <option value="aguardando" ${x.status==='aguardando'?'selected':''}>⏳ Aguardando</option>
+            <option value="atendimento" ${x.status==='atendimento'?'selected':''}>💬 Atendimento</option>
+            <option value="liberado" ${x.status==='liberado'?'selected':''}>✅ Liberado</option>
+          </select>
+        </td>
+      </tr>`).join('');
+  };
+  tbl('visitantes-tbl'); tbl('visitantes-full');
+}
+
+async function registrarVisitanteQR() {
+  const nome = document.getElementById('vn').value.trim();
+  const empresa = document.getElementById('ve').value.trim();
+  const destino = document.getElementById('vd').value.trim();
+  if (!nome) return toast('err','Campo vazio','Informe o nome');
+
+  const r = await fetch('/api/upload/visitante', {
+    method:'POST',
+    headers:{ 'Content-Type':'application/json', 'Authorization':`Bearer ${TOKEN}` },
+    body: JSON.stringify({ nome, empresa, destino }),
+  });
+  const d = await r.json();
+  if (!r.ok) return toast('err','Erro',d.erro);
+
+  document.getElementById('vn').value='';
+  document.getElementById('ve').value='';
+  document.getElementById('vd').value='';
+
+  // Mostrar QR modal
+  document.getElementById('qr-info').textContent = `${nome} — ${empresa}`;
+  document.getElementById('qr-img').src = d.qrCode || '';
+  document.getElementById('qr-url').textContent = d.urlCheckin;
+  document.getElementById('qr-modal').classList.add('show');
+  toast('ok','📱 QR Gerado',`Visitante: ${nome}`);
+}
+
+function registrarVisitanteSimples() {
+  const nome = document.getElementById('vn').value.trim();
+  const empresa = document.getElementById('ve').value.trim();
+  const destino = document.getElementById('vd').value.trim();
+  if (!nome) return toast('err','Campo vazio','Informe o nome');
+  socket.emit('visitante:novo', { nome, empresa, destino });
+  document.getElementById('vn').value='';
+  document.getElementById('ve').value='';
+  document.getElementById('vd').value='';
+  toast('ok','👤 Registrado', nome);
+}
+
+// ─── AVISOS ──────────────────────────────────────
+function enviarAviso() {
+  const setor = document.getElementById('av-setor').value;
+  const msg   = document.getElementById('av-msg').value.trim();
+  if (!msg) return toast('err','Vazio','Digite a mensagem');
+  socket.emit('aviso:enviar', { setor, msg, autor:USER?.nome });
+  document.getElementById('av-msg').value = '';
+  toast('ok','📤 Enviado', `${cap(setor)}: ${msg.slice(0,40)}`);
+}
+
+function enviarBroadcast() {
+  const msg = document.getElementById('av-msg').value.trim();
+  if (!msg) return toast('err','Vazio','Digite a mensagem');
+  socket.emit('aviso:broadcast', { msg, autor:USER?.nome });
+  document.getElementById('av-msg').value = '';
+  toast('ok','📡 Broadcast', msg.slice(0,50));
+}
+
+function renderAvisoDisplay() {
+  Object.entries(appState.avisos).forEach(([s,m]) => {
+    const el = document.getElementById(`av-${s}`);
+    if (el) el.textContent = m;
+  });
+}
+
+function renderAvisosLista() {
+  const el = document.getElementById('avisos-lista'); if(!el) return;
+  el.innerHTML = Object.entries(appState.avisos).map(([s,m]) => `
+    <div style="background:var(--surface2);border-radius:8px;padding:10px 14px;margin-bottom:8px;border-left:3px solid var(--accent)">
+      <div style="font-size:10.5px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">${sIcon(s)} ${cap(s)}</div>
+      <div style="font-size:12.5px">${m}</div>
+    </div>`).join('');
+}
+
+// ─── AGENDAMENTOS ────────────────────────────────
+function renderAgendamentos() {
+  const el = document.getElementById('agendamentos-lista'); if(!el) return;
+  const list = appState.agendamentos;
+  if (!list.length) { el.innerHTML = `<div style="color:var(--muted);font-size:13px">Nenhum agendamento cadastrado.</div>`; return; }
+  el.innerHTML = list.map(ag => `
+    <div class="schedule-card">
+      <div class="sc-time">${ag.hora_ini}–${ag.hora_fim}</div>
+      <div class="sc-body">
+        <div class="sc-title">${ag.titulo}</div>
+        <div class="sc-setor">${sIcon(ag.setor)} ${cap(ag.setor)} · dias: ${diasStr(ag.dias)}</div>
+        <div style="font-size:11.5px;color:var(--muted);margin-top:3px">${ag.conteudo.slice(0,80)}</div>
+      </div>
+      <div class="sc-actions">
+        <button class="btn ${ag.ativo?'danger':'green'}" style="padding:5px 10px;font-size:11px" onclick="toggleAg(${ag.id},${ag.ativo?0:1})">${ag.ativo?'⏸ Pausar':'▶ Ativar'}</button>
+        <button class="btn sec" style="padding:5px 10px;font-size:11px" onclick="deletarAg(${ag.id})">🗑</button>
+      </div>
+    </div>`).join('');
+}
+
+async function criarAgendamento() {
+  const r = await fetch('/api/agendamentos', {
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':`Bearer ${TOKEN}`},
+    body: JSON.stringify({
+      setor:    document.getElementById('ag-setor').value,
+      titulo:   document.getElementById('ag-titulo').value.trim(),
+      conteudo: document.getElementById('ag-conteudo').value.trim(),
+      hora_ini: document.getElementById('ag-ini').value,
+      hora_fim: document.getElementById('ag-fim').value,
+      dias:     document.getElementById('ag-dias').value,
+    }),
+  });
+  const d = await r.json();
+  if (!r.ok) return toast('err','Erro',d.erro);
+  appState.agendamentos.unshift(d);
+  renderAgendamentos();
+  toast('ok','⏰ Agendamento criado','Ativo e funcionando!');
+}
+
+async function toggleAg(id, ativo) {
+  await fetch(`/api/agendamentos/${id}`, {
+    method:'PATCH',
+    headers:{'Content-Type':'application/json','Authorization':`Bearer ${TOKEN}`},
+    body: JSON.stringify({ ativo }),
+  });
+  const ag = appState.agendamentos.find(a=>a.id===id);
+  if (ag) { ag.ativo = ativo; renderAgendamentos(); }
+  toast('ok', ativo ? '▶ Agendamento ativado':'⏸ Agendamento pausado','');
+}
+
+async function deletarAg(id) {
+  if (!confirm('Deletar este agendamento?')) return;
+  await fetch(`/api/agendamentos/${id}`, { method:'DELETE', headers:{'Authorization':`Bearer ${TOKEN}`} });
+  appState.agendamentos = appState.agendamentos.filter(a=>a.id!==id);
+  renderAgendamentos();
+  toast('ok','🗑 Deletado','Agendamento removido');
+}
+
+function diasStr(dias) {
+  const map = {0:'Dom',1:'Seg',2:'Ter',3:'Qua',4:'Qui',5:'Sex',6:'Sáb'};
+  return dias.split(',').map(d=>map[d]||d).join(', ');
+}
+
+// ─── UPLOADS ─────────────────────────────────────
+let selectedFile = null;
+
+function handleFileSelect(input) {
+  selectedFile = input.files[0];
+  if (selectedFile) {
+    document.getElementById('btn-upload').disabled = false;
+    document.querySelector('.uz-lbl').innerHTML = `✅ ${selectedFile.name}<br><span style="font-size:11px">${(selectedFile.size/1024).toFixed(0)} KB</span>`;
+    if (!document.getElementById('up-nome').value) {
+      document.getElementById('up-nome').value = selectedFile.name.replace(/\.[^.]+$/, '');
+    }
+  }
+}
+
+// Drag & Drop
+const dropZone = document.getElementById('drop-zone');
+if (dropZone) {
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag'));
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault(); dropZone.classList.remove('drag');
+    const fi = document.getElementById('file-input');
+    fi.files = e.dataTransfer.files;
+    handleFileSelect(fi);
+  });
+}
+
+async function fazerUpload() {
+  if (!selectedFile) return toast('err','Sem arquivo','Selecione uma imagem');
+  const fd = new FormData();
+  fd.append('imagem', selectedFile);
+  fd.append('nome', document.getElementById('up-nome').value || selectedFile.name);
+  fd.append('setor', document.getElementById('up-setor').value);
+  fd.append('tipo', document.getElementById('up-tipo').value);
+
+  const r = await fetch('/api/upload', { method:'POST', headers:{'Authorization':`Bearer ${TOKEN}`}, body:fd });
+  const d = await r.json();
+  if (!r.ok) return toast('err','Erro no upload', d.erro||'Tente novamente');
+  toast('ok','🖼 Upload concluído', d.nome);
+  selectedFile = null;
+  document.getElementById('btn-upload').disabled = true;
+  document.querySelector('.uz-lbl').innerHTML = 'Clique ou arraste aqui<br><span style="font-size:11px">JPG, PNG, SVG — máx 5MB</span>';
+  carregarUploads();
+}
+
+async function carregarUploads() {
+  try {
+    const r = await fetch('/api/uploads', { headers:{'Authorization':`Bearer ${TOKEN}`} });
+    const list = await r.json();
+    const el = document.getElementById('uploads-lista'); if(!el) return;
+    if (!list.length) { el.innerHTML=`<div style="color:var(--muted);font-size:13px">Nenhum upload ainda.</div>`; return; }
+    el.innerHTML = list.slice(0,10).map(u => `
+      <div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--border)">
+        <img src="${u.arquivo}" style="width:40px;height:40px;border-radius:6px;object-fit:cover;background:var(--surface2)">
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:500">${u.nome}</div>
+          <div style="font-size:11px;color:var(--muted)">${u.setor||'Geral'} · ${u.tipo} · ${u.criado_em}</div>
+        </div>
+        <a href="${u.arquivo}" target="_blank" style="color:var(--accent);font-size:11px">ver</a>
+      </div>`).join('');
+  } catch{}
+}
+
+// ─── DEVICES ─────────────────────────────────────
+function renderDevices(devs) {
+  const list = Object.values(devs);
+
+  const mini = document.getElementById('devices-mini');
+  if (mini) mini.innerHTML = list.length ? list.map(d => `
+    <tr>
+      <td>${d.nome}</td>
+      <td><span class="tag ${sTag(d.setor)}">${cap(d.setor)}</span></td>
+      <td><span class="tag ${d.online?'t-green':'t-red'}">${d.online?'● Online':'○ Off'}</span></td>
+    </tr>`).join('') : `<tr><td colspan="3" style="color:var(--muted);font-size:13px">Nenhum dispositivo.</td></tr>`;
+
+  const full = document.getElementById('devices-full');
+  if (full) full.innerHTML = list.length ? list.map(d => `
+    <tr>
+      <td><strong>${d.nome}</strong></td>
+      <td><span class="tag ${sTag(d.setor)}">${cap(d.setor)}</span></td>
+      <td style="font-family:monospace;font-size:11px;color:var(--muted)">${d.ip}</td>
+      <td style="color:var(--muted);font-size:12px">${d.conectadoEm}</td>
+      <td><span class="tag ${d.online?'t-green':'t-red'}">${d.online?'● Online':'○ Offline'}</span></td>
+    </tr>`).join('') : `<tr><td colspan="5" style="color:var(--muted);font-size:13px">Nenhuma TV conectada.</td></tr>`;
+}
+
+// ─── EMAILS ──────────────────────────────────────
+async function carregarEmails() {
+  try {
+    const r = await fetch('/api/emails', { headers:{'Authorization':`Bearer ${TOKEN}`} });
+    if (!r.ok) return;
+    const list = await r.json();
+    const el = document.getElementById('emails-lista'); if(!el) return;
+    if (!list.length) { el.innerHTML=`<div style="color:var(--muted);font-size:13px">Nenhum e-mail enviado.</div>`; return; }
+    el.innerHTML = list.map(e => {
+      const tipo = e.assunto.includes('Crítico')||e.assunto.includes('🚨') ? 'critico' : e.assunto.includes('✅') ? 'sucesso' : '';
+      return `<div class="email-entry ${tipo}">
+        <div class="email-from">Para: ${e.destinatario} · ${e.criado_em}</div>
+        <div class="email-subj">${e.assunto}</div>
+        <div class="email-body">${e.corpo.slice(0,120)}</div>
+      </div>`;
+    }).join('');
+  } catch{}
+}
+
+// ─── INFRA BARS ──────────────────────────────────
+function updateBars(ti) {
+  if (!ti) return;
+  updateBar('cpu', ti.cpu);
+  updateBar('ram', ti.ram);
+  updateBar('disk', ti.disco);
+}
+
+function updateBar(name, pct) {
+  const bar = document.getElementById(`${name}-b`);
+  const clr = document.getElementById(`${name}-c`);
+  const pEl = document.getElementById(`${name}-p`);
+  if (!bar) return;
+  const cls = pct>=85?'crit':pct>=65?'warn':'ok';
+  const col = pct>=85?'var(--danger)':pct>=65?'var(--accent3)':'var(--accent2)';
+  bar.style.width = pct+'%'; bar.className = `infra-fill ${cls}`;
+  if (clr) clr.style.color = col;
+  if (pEl) { pEl.textContent = pct+'%'; pEl.style.color = col; }
+}
+
+// ─── LOGS ────────────────────────────────────────
+function prependLog(log) {
+  const el = document.getElementById('log-stream'); if(!el) return;
+  const div = document.createElement('div');
+  div.innerHTML = `<div class="log-entry ${log.tipo||'sistema'}">
+    <div class="lg-time">${log.criado_em||''}</div>
+    <div class="lg-body"><strong>[${cap(log.setor||'sistema')}]</strong> ${log.msg}</div>
+  </div>`;
+  el.insertBefore(div.firstChild, el.firstChild);
+  if (el.children.length > 80) el.removeChild(el.lastChild);
+}
+
+function limparUI() {
+  const el = document.getElementById('log-stream');
+  if (el) el.innerHTML = `<div style="color:var(--muted);font-size:13px;padding:8px 0">Log limpo.</div>`;
+}
+
+// ─── NAVIGATION ──────────────────────────────────
+const META = {
+  admin:        {t:'Dashboard',            c:'Início'},
+  recepcao:     {t:'Recepção',             c:'Setores / Recepção'},
+  ti:           {t:'TI',                   c:'Setores / TI'},
+  escritorio:   {t:'Escritório',           c:'Setores / Escritório'},
+  adm:          {t:'Administrativo',       c:'Setores / Administrativo'},
+  rh:           {t:'RH',                   c:'Setores / RH'},
+  avisos:       {t:'Central de Avisos',    c:'Controle / Avisos'},
+  tickets:      {t:'Central de Tickets',   c:'Controle / Tickets'},
+  visitantes:   {t:'Visitantes',           c:'Controle / Visitantes'},
+  agendamentos: {t:'Agendamentos',         c:'Controle / Agendamentos'},
+  uploads:      {t:'Uploads de Imagens',   c:'Controle / Uploads'},
+  devices:      {t:'TV Boxes',             c:'Controle / Dispositivos'},
+  emails:       {t:'E-mails Enviados',     c:'Sistema / E-mails'},
+  logs:         {t:'Auditoria',            c:'Sistema / Logs'},
+};
+
+function goPage(name, el) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav').forEach(n=>n.classList.remove('active'));
+  document.getElementById('page-'+name)?.classList.add('active');
+  el?.classList.add('active');
+  const m = META[name];
+  if (m) { setText('pg-title', m.t); setText('pg-crumb', m.c); }
+  if (name === 'avisos')       renderAvisosLista();
+  if (name === 'tickets')      renderTickets();
+  if (name === 'visitantes')   renderVisitantes();
+  if (name === 'agendamentos') renderAgendamentos();
+  if (name === 'devices')      renderDevices(appState.dispositivos);
+  if (name === 'uploads')      carregarUploads();
+  if (name === 'emails')       carregarEmails();
+}
+
+// ─── CLOCK ───────────────────────────────────────
+setInterval(() => {
+  const n = new Date(), p = v=>String(v).padStart(2,'0');
+  setText('clock', `${p(n.getHours())}:${p(n.getMinutes())}:${p(n.getSeconds())}`);
+}, 1000);
+
+// ─── TOAST ───────────────────────────────────────
+function toast(type, title, msg) {
+  const icons = {ok:'✅',err:'❌',warn:'⚠️',info:'ℹ️'};
+  const c = document.getElementById('toasts');
+  const el = document.createElement('div');
+  el.className = `toast t-${type}`;
+  el.innerHTML = `<span class="toast-ico">${icons[type]||'•'}</span><div><div class="t-title">${title}</div><div class="t-msg">${msg}</div></div>`;
+  c.appendChild(el);
+  setTimeout(() => { el.style.opacity='0'; el.style.transition='opacity .3s'; setTimeout(()=>el.remove(),300); }, 4500);
+}
+
+
+// ── FILA ─────────────────────────────────────────────────
+socket.on('fila:update', (data) => { renderFilaAdmin(data); });
+socket.on('senha:chamada', ({ numFmt, guiche }) => toast('info', `📣 Senha ${numFmt}`, `Chamada para ${guiche}`));
+
+function renderFilaAdmin(data) {
+  if (!data) return;
+  setText('f-wait',  data.aguardando?.length  ?? 0);
+  setText('f-atend', data.atendimento?.length ?? 0);
+  setText('f-total', (data.aguardando?.length||0) + (data.atendimento?.length||0));
+  const el = document.getElementById('fila-admin-list');
+  if (!el) return;
+  const list = [...(data.atendimento||[]), ...(data.aguardando||[])];
+  if (!list.length) { el.innerHTML = '<div style="color:var(--muted);font-size:13px">Fila vazia.</div>'; return; }
+  el.innerHTML = list.map((v, i) => {
+    const isAtend = v.status === 'atendimento';
+    return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px">
+      <span style="color:var(--muted);width:20px;text-align:center">${isAtend ? '●' : i + 1}</span>
+      <span style="flex:1;font-weight:500">${v.nome}</span>
+      <span class="tag ${isAtend ? 't-blue' : 't-amber'}">${isAtend ? 'Atendimento' : 'Aguardando'}</span>
+      <span style="color:var(--muted);font-size:11px">${v.entrada}</span>
+    </div>`;
+  }).join('');
+}
+
+async function emitirSenha() {
+  const prefixo = document.getElementById('f-prefixo').value;
+  const r = await fetch('/api/fila/emitir', {
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':`Bearer ${TOKEN}`},
+    body: JSON.stringify({ prefixo }),
+  });
+  const d = await r.json();
+  if (!r.ok) return toast('err','Erro', d.erro);
+  const num = `${d.prefixo}${String(d.numero).padStart(3,'0')}`;
+  toast('ok', `🎫 Senha ${num} emitida`, 'Na fila!');
+}
+
+async function chamarProxima() {
+  const guiche  = document.getElementById('f-guiche').value;
+  const prefixo = document.getElementById('f-pref-chamar').value;
+  const r = await fetch('/api/fila/chamar', {
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':`Bearer ${TOKEN}`},
+    body: JSON.stringify({ guiche, prefixo }),
+  });
+  const d = await r.json();
+  if (!r.ok) return toast('warn','Fila vazia', 'Nenhuma senha aguardando');
+  toast('ok', `📣 ${d.numFmt} chamada`, d.guiche);
+}
+
+async function resetarFila() {
+  if (!confirm('Resetar toda a fila do dia?')) return;
+  await fetch('/api/fila/reset', { method:'POST', headers:{'Authorization':`Bearer ${TOKEN}`} });
+  toast('ok','🗑 Fila resetada','');
+}
+
+// ─── CONN ────────────────────────────────────────
+function setConn(on) {
+  document.getElementById('cdot').className = 'cdot'+(on?'':' off');
+  document.getElementById('conn-lbl').textContent = on ? 'Conectado' : 'Desconectado';
+}
+
+// ─── UTILS ───────────────────────────────────────
+function setText(id,v){const el=document.getElementById(id);if(el)el.textContent=v}
+function cap(s){return s?s[0].toUpperCase()+s.slice(1):s}
+function toggleForm(id){const el=document.getElementById(id);el.style.display=el.style.display==='none'?'block':'none'}
+function sTag(s){return{ti:'t-blue',recepcao:'t-amber',escritorio:'t-purple',administrativo:'t-green',rh:'t-red'}[s]||'t-blue'}
+function pTag(p){return{alta:'t-red',media:'t-amber',baixa:'t-green'}[p]||'t-blue'}
+function stTag(s){return{aberto:'t-red',andamento:'t-amber',resolvido:'t-green'}[s]||'t-blue'}
+function sIcon(s){return{recepcao:'🪟',ti:'🖥',escritorio:'📁',administrativo:'📊',rh:'👥'}[s]||'📌'}
+</script>
+</body>
+</html>
