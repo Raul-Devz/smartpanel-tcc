@@ -1,6 +1,7 @@
 {
   "name": "smartpanel",
   "version": "4.0.0",
+  "engines": { "node": "20.x" },
   "description": "Painel Inteligente para TV Box — TCC",
   "main": "server.js",
   "scripts": {
