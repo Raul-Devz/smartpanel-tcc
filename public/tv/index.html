@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SmartPanel TV</title>
+<script src="/socket.io/socket.io.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#08090f;--sur:#0f1119;--sur2:#161b27;--bdr:#ffffff0d;--ac:#4f8ef7;--ac2:#38d9a9;--ac3:#f59e0b;--dg:#f87171;--tx:#eef0f6;--mt:#5a6278}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;background:var(--bg);color:var(--tx);font-family:'DM Sans',sans-serif;overflow:hidden}
+body{display:grid;grid-template-rows:auto 1fr auto;height:100vh}
+
+/* HEADER */
+header{background:var(--sur);border-bottom:1px solid var(--bdr);padding:14px 36px;display:flex;align-items:center;justify-content:space-between}
+.h-brand{display:flex;align-items:center;gap:14px}
+.h-logo{font-family:'Syne',sans-serif;font-weight:800;font-size:17px;color:var(--ac)}
+.h-sep{width:1px;height:22px;background:var(--bdr)}
+.h-setor{font-family:'Syne',sans-serif;font-size:16px;font-weight:700}
+.h-right{display:flex;align-items:center;gap:20px}
+.h-date{font-size:13px;color:var(--mt)}
+.h-clock{font-family:'Syne',sans-serif;font-size:24px;font-weight:800;letter-spacing:2px}
+.cdot{width:7px;height:7px;border-radius:50%;background:var(--ac2);animation:pulse 2s infinite}
+.cdot.off{background:var(--dg);animation:none}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+/* MAIN */
+main{overflow:hidden;padding:22px 36px;display:flex;flex-direction:column;gap:16px}
+
+/* BANNER DE AVISO */
+.aviso-banner{background:linear-gradient(135deg,#1a2540,#1c2030);border:1px solid var(--ac);border-radius:12px;padding:14px 22px;display:flex;align-items:center;gap:14px;position:relative;overflow:hidden;flex-shrink:0}
+.aviso-banner::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--ac),var(--ac2));animation:scan 4s ease-in-out infinite}
+@keyframes scan{0%,100%{opacity:.4}50%{opacity:1}}
+.av-ico{font-size:26px;flex-shrink:0}
+.av-lbl{font-size:10px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--ac);margin-bottom:3px}
+.av-msg{font-size:15px;font-weight:500;line-height:1.4}
+.av-ts{font-size:11px;color:var(--mt);margin-top:2px}
+
+/* GRID LAYOUTS */
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;flex-shrink:0}
+.g2{display:grid;grid-template-columns:1.3fr 1fr;gap:14px;flex:1;overflow:hidden}
+.g2b{display:grid;grid-template-columns:1fr 1fr;gap:14px;flex:1}
+.gfull{flex:1;overflow:hidden}
+
+/* STAT CARD */
+.stat{background:var(--sur);border:1px solid var(--bdr);border-radius:10px;padding:16px 18px;position:relative;overflow:hidden}
+.st-ico{position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:28px;opacity:.18}
+.st-lbl{font-size:10px;color:var(--mt);text-transform:uppercase;letter-spacing:1px;font-weight:600}
+.st-val{font-family:'Syne',sans-serif;font-size:32px;font-weight:800;margin:4px 0 2px;line-height:1}
+.st-sub{font-size:11.5px;color:var(--mt)}
+
+/* CARD */
+.card{background:var(--sur);border:1px solid var(--bdr);border-radius:10px;padding:16px 18px;overflow:hidden;display:flex;flex-direction:column}
+.c-title{font-family:'Syne',sans-serif;font-size:11px;font-weight:700;color:var(--mt);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:12px;flex-shrink:0}
+
+/* TABLE */
+.tbl{width:100%;border-collapse:collapse;font-size:12.5px}
+.tbl th{text-align:left;padding:6px 10px;font-size:10px;font-weight:600;color:var(--mt);text-transform:uppercase;letter-spacing:.8px;border-bottom:1px solid var(--bdr)}
+.tbl td{padding:9px 10px;border-bottom:1px solid var(--bdr)}
+.tbl tr:last-child td{border-bottom:none}
+
+/* BADGE */
+.tag{font-size:10.5px;padding:2px 9px;border-radius:10px;font-weight:600;display:inline-block}
+.tg{background:#38d9a91a;color:var(--ac2)}.ty{background:#f59e0b1a;color:var(--ac3)}.tr{background:#f871711a;color:var(--dg)}.tb{background:#4f8ef71a;color:var(--ac)}
+
+/* INFRA BARS */
+.inf-row{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+.inf-nm{font-size:12px;width:90px;flex-shrink:0;color:var(--mt)}
+.inf-track{flex:1;background:#ffffff0a;border-radius:4px;height:8px;overflow:hidden}
+.inf-fill{height:100%;border-radius:4px;transition:width 1.2s ease}
+.inf-ok{background:var(--ac2)}.inf-warn{background:var(--ac3)}.inf-crit{background:var(--dg)}
+.inf-pct{font-size:13px;font-weight:700;width:36px;text-align:right;flex-shrink:0}
+
+/* AGENDA */
+.ag-item{padding:8px 0;border-bottom:1px solid var(--bdr);font-size:13px}
+.ag-item:last-child{border-bottom:none}
+.ag-hora{font-family:'Syne',sans-serif;font-weight:700;color:var(--ac);font-size:14px}
+.ag-desc{color:var(--mt);font-size:12px;margin-top:2px}
+
+/* ANIVERSARIO */
+.ani-card{background:var(--sur2);border-radius:10px;padding:14px 18px;text-align:center;flex:1}
+.ani-ico{font-size:30px;margin-bottom:6px}
+.ani-nm{font-weight:600;font-size:13px}
+.ani-dp{font-size:11px;color:var(--mt);margin-top:3px}
+
+/* FOOTER */
+footer{background:var(--sur);border-top:1px solid var(--bdr);height:38px;display:flex;align-items:center;overflow:hidden;flex-shrink:0}
+.tk-lbl{flex-shrink:0;font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--ac);padding:0 18px;border-right:1px solid var(--bdr)}
+.tk-track{flex:1;overflow:hidden}
+.tk-inner{white-space:nowrap;font-size:12.5px;color:var(--mt);animation:scroll 55s linear infinite;display:inline-block;padding-left:100%}
+@keyframes scroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+
+/* OVERLAY */
+#overlay{display:none;position:fixed;inset:0;background:#000d;z-index:100;align-items:center;justify-content:center}
+#overlay.show{display:flex;animation:fi .2s ease}
+@keyframes fi{from{opacity:0}to{opacity:1}}
+.ov-box{background:var(--sur);border:2px solid var(--ac);border-radius:16px;padding:40px 56px;text-align:center;position:relative}
+.ov-box::before{content:'';position:absolute;inset:-2px;border-radius:16px;background:linear-gradient(135deg,var(--ac),var(--ac2));z-index:-1;filter:blur(18px);opacity:.3}
+.ov-lbl{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--ac);margin-bottom:6px}
+.ov-msg{font-family:'Syne',sans-serif;font-size:22px;font-weight:800;line-height:1.4;max-width:500px}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="h-brand">
+    <div class="h-logo">⬡</div>
+    <div class="h-sep"></div>
+    <div class="h-setor" id="h-setor">—</div>
+  </div>
+  <div class="h-right">
+    <span class="cdot" id="cdot"></span>
+    <div class="h-date" id="h-date">—</div>
+    <div class="h-clock" id="h-clock">--:--</div>
+  </div>
+</header>
+
+<main id="main">
+  <div style="color:var(--mt);text-align:center;padding:40px">Conectando ao servidor...</div>
+</main>
+
+<footer>
+  <div class="tk-lbl">📢</div>
+  <div class="tk-track"><div class="tk-inner" id="ticker">Carregando avisos...</div></div>
+</footer>
+
+<div id="overlay" onclick="this.classList.remove('show')">
+  <div class="ov-box">
+    <div class="ov-lbl" id="ov-lbl">Aviso</div>
+    <div class="ov-msg" id="ov-msg">—</div>
+  </div>
+</div>
+
+<script>
+const params = new URLSearchParams(location.search);
+const SETOR  = params.get("setor") || "recepcao";
+const NOME   = params.get("nome")  || `TV-${SETOR}`;
+
+const META = {
+  recepcao:      {label:"🪟 Recepção",       cor:"#4f8ef7"},
+  ti:            {label:"🖥 TI",              cor:"#38d9a9"},
+  escritorio:    {label:"📁 Escritório",      cor:"#c084fc"},
+  administrativo:{label:"📊 Administrativo",  cor:"#f59e0b"},
+  rh:            {label:"👥 RH",              cor:"#f87171"},
+};
+const meta = META[SETOR] || {label:SETOR, cor:"#4f8ef7"};
+document.getElementById("h-setor").textContent = meta.label;
+document.documentElement.style.setProperty("--ac", meta.cor);
+
+const socket = io({ query:{ setor:SETOR, tipo:"tv", nome:NOME } });
+const state  = { avisos:{}, tickets:[], visitantes:[], metricas:{ cpu:42, ram:91, disco:78 } };
+
+socket.on("connect",    () => setConn(true));
+socket.on("disconnect", () => setConn(false));
+setInterval(() => socket.emit("ping:tv"), 5000);
+
+socket.on("snapshot", (d) => {
+  state.avisos    = d.avisos    || {};
+  state.tickets   = d.tickets   || [];
+  state.visitantes= d.visitantes|| [];
+  if (d.metricas?.ti) state.metricas = d.metricas.ti;
+  renderPage();
+  renderTicker();
+});
+
+socket.on("aviso:novo", ({ setor, msg }) => {
+  if (setor === SETOR || setor === "todos") {
+    state.avisos[SETOR] = msg;
+    updateBanner(msg);
+    renderTicker();
+    showOverlay("📢 Novo Aviso", msg);
+  }
+});
+
+socket.on("tickets:update",   (l) => { state.tickets    = l; if(SETOR==="ti"||SETOR==="escritorio"||SETOR==="administrativo") renderPage(); });
+socket.on("visitantes:update",(l) => { state.visitantes = l; if(SETOR==="recepcao") renderPage(); });
+socket.on("metricas:update",  (m) => { if(m.ti && SETOR==="ti"){ state.metricas=m.ti; updateInfra(); } });
+
+// ── RENDER ────────────────────────────────────────────────
+function renderPage() {
+  const aviso = state.avisos[SETOR] || "Sem avisos no momento.";
+  const banner = `
+    <div class="aviso-banner">
+      <span class="av-ico">📢</span>
+      <div><div class="av-lbl">Aviso do Setor</div>
+      <div class="av-msg" id="banner-msg">${aviso}</div>
+      <div class="av-ts" id="banner-ts">${new Date().toLocaleTimeString("pt-BR")}</div></div>
+    </div>`;
+  const renders = { recepcao:renderRecepcao, ti:renderTI, escritorio:renderEscritorio, administrativo:renderAdm, rh:renderRH };
+  const fn = renders[SETOR] || renderGenerico;
+  document.getElementById("main").innerHTML = banner + fn();
+}
+
+function updateBanner(msg) {
+  const el = document.getElementById("banner-msg");
+  if (el) { el.textContent = msg; document.getElementById("banner-ts").textContent = new Date().toLocaleTimeString("pt-BR"); }
+}
+
+function renderRecepcao() {
+  const v = state.visitantes;
+  const wait = v.filter(x=>x.status==="aguardando").length;
+  const done = v.filter(x=>x.status==="liberado").length;
+  return `
+    <div class="g3">
+      <div class="stat"><div class="st-ico">👤</div><div class="st-lbl">Total</div><div class="st-val">${v.length}</div><div class="st-sub">hoje</div></div>
+      <div class="stat"><div class="st-ico">⏳</div><div class="st-lbl">Aguardando</div><div class="st-val" style="color:var(--ac3)">${wait}</div><div class="st-sub">na fila</div></div>
+      <div class="stat"><div class="st-ico">✅</div><div class="st-lbl">Liberados</div><div class="st-val" style="color:var(--ac2)">${done}</div><div class="st-sub">atendidos</div></div>
+    </div>
+    <div class="card gfull">
+      <div class="c-title">Visitantes de Hoje</div>
+      <table class="tbl"><thead><tr><th>Nome</th><th>Empresa</th><th>Destino</th><th>Entrada</th><th>Status</th></tr></thead>
+      <tbody>${v.slice(0,8).map(x=>`
+        <tr>
+          <td><strong>${x.nome}</strong></td>
+          <td style="color:var(--mt)">${x.empresa||"—"}</td>
+          <td>${x.destino||"—"}</td>
+          <td style="color:var(--mt);font-size:11px">${x.entrada}</td>
+          <td><span class="tag ${x.status==="liberado"?"tg":x.status==="atendimento"?"tb":"ty"}">${x.status==="liberado"?"✅ Liberado":x.status==="atendimento"?"💬 Atendimento":"⏳ Aguardando"}</span></td>
+        </tr>`).join("")}</tbody></table>
+    </div>`;
+}
+
+function renderTI() {
+  const tickets = state.tickets.filter(t=>t.setor==="ti"&&t.status!=="resolvido");
+  const m = state.metricas;
+  return `
+    <div class="g3">
+      <div class="stat"><div class="st-ico">🎫</div><div class="st-lbl">Tickets Abertos</div><div class="st-val" style="color:var(--dg)">${tickets.length}</div></div>
+      <div class="stat"><div class="st-ico">🌐</div><div class="st-lbl">Uptime</div><div class="st-val" style="color:var(--ac2)">99%</div></div>
+      <div class="stat"><div class="st-ico">📡</div><div class="st-lbl">Devices</div><div class="st-val">84</div></div>
+    </div>
+    <div class="g2">
+      <div class="card">
+        <div class="c-title">Infraestrutura</div>
+        ${infraRow("CPU",m.cpu||42)}${infraRow("RAM",m.ram||91)}${infraRow("Disco",m.disco||78)}
+        ${infraRow("Switch",31)}${infraRow("Firewall",55)}
+      </div>
+      <div class="card">
+        <div class="c-title">Chamados Abertos (${tickets.length})</div>
+        ${tickets.length===0?'<div style="color:var(--ac2);font-size:13px">✅ Nenhum chamado aberto!</div>':tickets.slice(0,5).map(t=>`
+          <div style="padding:8px 0;border-bottom:1px solid var(--bdr);font-size:12.5px;display:flex;gap:8px;align-items:center">
+            <span class="tag ${t.prioridade==="alta"?"tr":"ty"}">#${t.id}</span>
+            <span style="flex:1">${t.descricao}</span>
+          </div>`).join("")}
+      </div>
+    </div>`;
+}
+
+function infraRow(name, pct) {
+  const cls = pct>=85?"inf-crit":pct>=65?"inf-warn":"inf-ok";
+  const col = pct>=85?"var(--dg)":pct>=65?"var(--ac3)":"var(--ac2)";
+  return `<div class="inf-row" id="ir-${name}">
+    <div class="inf-nm">${name}</div>
+    <div class="inf-track"><div class="inf-fill ${cls}" id="ib-${name}" style="width:${pct}%"></div></div>
+    <div class="inf-pct" id="ip-${name}" style="color:${col}">${pct}%</div>
+  </div>`;
+}
+
+function updateInfra() {
+  const m = state.metricas;
+  [["CPU",m.cpu],["RAM",m.ram],["Disco",m.disco]].forEach(([n,v]) => {
+    const b=document.getElementById(`ib-${n}`), p=document.getElementById(`ip-${n}`); if(!b) return;
+    const cls=v>=85?"inf-crit":v>=65?"inf-warn":"inf-ok";
+    const col=v>=85?"var(--dg)":v>=65?"var(--ac3)":"var(--ac2)";
+    b.style.width=v+"%"; b.className=`inf-fill ${cls}`;
+    if(p){p.textContent=v+"%";p.style.color=col;}
+  });
+}
+
+function renderEscritorio() {
+  const tickets = state.tickets.filter(t=>t.setor==="escritorio"&&t.status!=="resolvido");
+  return `
+    <div class="g3">
+      <div class="stat"><div class="st-ico">🎯</div><div class="st-lbl">Meta Mensal</div><div class="st-val" style="color:var(--ac2)">76<span style="font-size:16px">%</span></div><div class="st-sub">no prazo</div></div>
+      <div class="stat"><div class="st-ico">📄</div><div class="st-lbl">Docs Pendentes</div><div class="st-val" style="color:var(--ac3)">9</div><div class="st-sub">aprovação</div></div>
+      <div class="stat"><div class="st-ico">📅</div><div class="st-lbl">Reuniões Hoje</div><div class="st-val" style="color:var(--ac)">3</div><div class="st-sub">14h · 15h · 17h</div></div>
+    </div>
+    <div class="card gfull">
+      <div class="c-title">Agenda do Dia</div>
+      <table class="tbl"><thead><tr><th>Horário</th><th>Evento</th><th>Local</th></tr></thead>
+      <tbody>
+        <tr><td><strong>09:00</strong></td><td>Daily da equipe</td><td style="color:var(--mt)">Online / Meet</td></tr>
+        <tr><td><strong>14:00</strong></td><td>Revisão de projetos Q2</td><td style="color:var(--mt)">Sala Reunião A</td></tr>
+        <tr><td><strong>15:00</strong></td><td>Alinhamento com parceiros</td><td style="color:var(--mt)">Sala Reunião B</td></tr>
+        <tr><td><strong>17:00</strong></td><td>Apresentação de resultados</td><td style="color:var(--mt)">Auditório</td></tr>
+      </tbody></table>
+    </div>`;
+}
+
+function renderAdm() {
+  return `
+    <div class="g3">
+      <div class="stat"><div class="st-ico">💰</div><div class="st-lbl">Receita Mês</div><div class="st-val" style="color:var(--ac2);font-size:26px">R$ 84k</div><div class="st-sub">+8% vs mês ant.</div></div>
+      <div class="stat"><div class="st-ico">📉</div><div class="st-lbl">Despesas</div><div class="st-val" style="color:var(--dg);font-size:26px">R$ 51k</div><div class="st-sub">+3%</div></div>
+      <div class="stat"><div class="st-ico">📃</div><div class="st-lbl">Contratos</div><div class="st-val" style="color:var(--ac)">17</div><div class="st-sub">3 a vencer</div></div>
+    </div>
+    <div class="card gfull">
+      <div class="c-title">Contratos Próximos do Vencimento</div>
+      <table class="tbl"><thead><tr><th>Fornecedor</th><th>Categoria</th><th>Vencimento</th><th>Valor</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td><strong>TeleNet ISP</strong></td><td style="color:var(--mt)">Internet</td><td>30/04/2026</td><td>R$ 1.800/mês</td><td><span class="tag tr">Urgente</span></td></tr>
+        <tr><td><strong>Segurança Alfa</strong></td><td style="color:var(--mt)">Vigilância</td><td>15/05/2026</td><td>R$ 4.200/mês</td><td><span class="tag ty">Atenção</span></td></tr>
+        <tr><td><strong>LimpaTudo</strong></td><td style="color:var(--mt)">Limpeza</td><td>01/06/2026</td><td>R$ 900/mês</td><td><span class="tag tg">OK</span></td></tr>
+      </tbody></table>
+    </div>`;
+}
+
+function renderRH() {
+  return `
+    <div class="g3">
+      <div class="stat"><div class="st-ico">👤</div><div class="st-lbl">Funcionários</div><div class="st-val" style="color:var(--ac)">67</div><div class="st-sub">+2 este mês</div></div>
+      <div class="stat"><div class="st-ico">🌴</div><div class="st-lbl">De Férias</div><div class="st-val" style="color:var(--ac2)">5</div><div class="st-sub">retornam em maio</div></div>
+      <div class="stat"><div class="st-ico">📋</div><div class="st-lbl">Vagas Abertas</div><div class="st-val" style="color:var(--ac3)">2</div><div class="st-sub">Analista · Dev</div></div>
+    </div>
+    <div class="card gfull">
+      <div class="c-title" style="margin-bottom:16px">🎂 Aniversariantes da Semana</div>
+      <div style="display:flex;gap:14px">
+        ${[["Ana Paula","Marketing","21/04"],["Lucas Ferreira","TI","23/04"],["Mariana Alves","Financeiro","25/04"]].map(([n,d,dt])=>`
+          <div class="ani-card">
+            <div class="ani-ico">🎉</div>
+            <div class="ani-nm">${n}</div>
+            <div class="ani-dp">${d} · ${dt}</div>
+          </div>`).join("")}
+      </div>
+    </div>`;
+}
+
+function renderGenerico() {
+  return `<div class="card gfull"><div class="c-title">Painel do Setor</div><p style="color:var(--mt)">Conectado ao setor ${SETOR}.</p></div>`;
+}
+
+// ── TICKER ────────────────────────────────────────────────
+function renderTicker() {
+  const partes = Object.entries(state.avisos).map(([s,m])=>`📌 ${s.toUpperCase()}: ${m}`).join("   ·   ");
+  const t = partes+" ".repeat(10)+partes;
+  document.getElementById("ticker").textContent = t;
+}
+
+// ── OVERLAY ───────────────────────────────────────────────
+let ovTimeout = null;
+function showOverlay(lbl, msg) {
+  document.getElementById("ov-lbl").textContent = lbl;
+  document.getElementById("ov-msg").textContent = msg;
+  document.getElementById("overlay").classList.add("show");
+  clearTimeout(ovTimeout);
+  ovTimeout = setTimeout(()=>document.getElementById("overlay").classList.remove("show"), 6000);
+}
+
+// ── CLOCK ─────────────────────────────────────────────────
+setInterval(()=>{
+  const n=new Date(), p=v=>String(v).padStart(2,"0");
+  document.getElementById("h-clock").textContent=`${p(n.getHours())}:${p(n.getMinutes())}`;
+  document.getElementById("h-date").textContent=n.toLocaleDateString("pt-BR",{weekday:"long",day:"2-digit",month:"long"});
+},1000);
+
+function setConn(on) { document.getElementById("cdot").className="cdot"+(on?"":" off"); }
+</script>
+</body>
+</html>

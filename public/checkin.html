@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SmartPanel — Check-in</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'DM Sans',sans-serif;background:#0d0f14;color:#e8eaf0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.box{background:#141720;border:1px solid #ffffff0e;border-radius:16px;padding:40px 36px;max-width:400px;width:100%;text-align:center}
+.logo{font-family:'Syne',sans-serif;font-weight:800;font-size:20px;color:#4f8ef7;margin-bottom:4px}
+.sub{font-size:11px;color:#6b7280;letter-spacing:1px;text-transform:uppercase;margin-bottom:32px}
+.state{display:none}
+.state.active{display:block}
+.ico{font-size:56px;margin-bottom:16px}
+.title{font-family:'Syne',sans-serif;font-size:22px;font-weight:700;margin-bottom:8px}
+.desc{font-size:14px;color:#9ca3af;line-height:1.6}
+.info-box{background:#1c2030;border-radius:10px;padding:16px;margin:20px 0;text-align:left}
+.info-row{display:flex;justify-content:space-between;padding:6px 0;font-size:13px;border-bottom:1px solid #ffffff0e}
+.info-row:last-child{border:none}
+.info-lbl{color:#6b7280}
+.info-val{font-weight:500}
+.btn{background:#38d9a9;color:#000;border:none;border-radius:10px;padding:14px 28px;font-family:'Syne',sans-serif;font-weight:700;font-size:15px;cursor:pointer;width:100%;margin-top:10px;transition:opacity .2s}
+.btn:hover{opacity:.85}
+.btn.sec{background:#1c2030;color:#e8eaf0;border:1px solid #ffffff18;margin-top:8px}
+.spinner{width:40px;height:40px;border:3px solid #ffffff10;border-top-color:#4f8ef7;border-radius:50%;animation:spin .8s linear infinite;margin:20px auto}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="box">
+  <div class="logo">⬡ SmartPanel</div>
+  <div class="sub">Check-in de Visitante</div>
+
+  <div class="state active" id="s-loading">
+    <div class="spinner"></div>
+    <div class="desc">Verificando seu acesso...</div>
+  </div>
+
+  <div class="state" id="s-info">
+    <div class="ico">👤</div>
+    <div class="title">Confirmar Check-in</div>
+    <div class="desc">Seus dados de visita:</div>
+    <div class="info-box">
+      <div class="info-row"><span class="info-lbl">Nome</span><span class="info-val" id="v-nome">—</span></div>
+      <div class="info-row"><span class="info-lbl">Empresa</span><span class="info-val" id="v-empresa">—</span></div>
+      <div class="info-row"><span class="info-lbl">Destino</span><span class="info-val" id="v-destino">—</span></div>
+      <div class="info-row"><span class="info-lbl">Status</span><span class="info-val" id="v-status">—</span></div>
+    </div>
+    <button class="btn" onclick="fazerCheckin()">✓ Confirmar Check-in</button>
+    <button class="btn sec" onclick="setEstado('s-info')">Cancelar</button>
+  </div>
+
+  <div class="state" id="s-ok">
+    <div class="ico">✅</div>
+    <div class="title">Check-in Realizado!</div>
+    <div class="desc">Você foi registrado como <strong>Em Atendimento</strong>.<br><br>Por favor aguarde ser chamado.</div>
+  </div>
+
+  <div class="state" id="s-erro">
+    <div class="ico">❌</div>
+    <div class="title">QR Code Inválido</div>
+    <div class="desc" id="erro-desc">Este QR Code não foi encontrado ou já foi utilizado.</div>
+  </div>
+</div>
+
+<script>
+const token = new URLSearchParams(location.search).get('token') || location.pathname.split('/checkin/')[1];
+
+async function init() {
+  if (!token) { showErro('QR Code não encontrado na URL.'); return; }
+  try {
+    const r = await fetch(`/api/visitantes/qr/${token}`);
+    if (!r.ok) { showErro('QR Code inválido ou expirado.'); return; }
+    const d = await r.json();
+    const v = d.visitante;
+    document.getElementById('v-nome').textContent    = v.nome;
+    document.getElementById('v-empresa').textContent = v.empresa || '—';
+    document.getElementById('v-destino').textContent = v.destino || '—';
+    document.getElementById('v-status').textContent  = v.status === 'aguardando' ? '⏳ Aguardando' : v.status;
+    setEstado('s-info');
+  } catch { showErro('Erro ao verificar QR Code.'); }
+}
+
+async function fazerCheckin() {
+  try {
+    const r = await fetch(`/api/visitantes/qr/${token}/checkin`, { method:'POST' });
+    if (!r.ok) throw new Error('Falha');
+    setEstado('s-ok');
+  } catch { showErro('Erro ao realizar check-in. Tente novamente.'); }
+}
+
+function setEstado(id) {
+  document.querySelectorAll('.state').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function showErro(msg) {
+  document.getElementById('erro-desc').textContent = msg;
+  setEstado('s-erro');
+}
+
+init();
+</script>
+</body>
+</html>
