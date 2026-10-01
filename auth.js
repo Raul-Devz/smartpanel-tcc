@@ -6,7 +6,42 @@ const jwt    = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const { dao } = require("./database");
 
-const SECRET  = process.env.JWT_SECRET  || "smartpanel_dev_secret";
+// ── JWT_SECRET obrigatório ────────────────────────────────
+// Sem um segredo forte e privado, qualquer pessoa consegue forjar um token de admin.
+// Por isso o sistema se recusa a iniciar em vez de usar um valor padrão.
+const SEGREDOS_CONHECIDOS = [
+  "smartpanel_dev_secret",
+  "mude_essa_chave_para_producao_use_uma_string_longa_e_aleatoria",
+  "troque_por_uma_string_aleatoria_longa",
+];
+
+function carregarSecret() {
+  const s = (process.env.JWT_SECRET || "").trim();
+  let problema = null;
+  if (!s)                                          problema = "não está definido";
+  else if (SEGREDOS_CONHECIDOS.includes(s) || /mude_essa|troque_por|changeme|dev_secret/i.test(s))
+                                                   problema = "é um valor de exemplo (público) e não pode ser usado";
+  else if (s.length < 32)                          problema = `é curto demais (${s.length} caracteres; mínimo 32)`;
+
+  if (problema) {
+    console.error(`
+  ❌ SmartPanel não iniciou: configuração de segurança inválida.
+
+  Motivo: o JWT_SECRET ${problema}.
+
+  Como resolver:
+    1. Gere um segredo:   npm run gerar-secret
+    2. Cole a linha gerada no arquivo .env (copie o .env.example se ele não existir)
+    3. Inicie novamente:  npm start
+
+  Nunca compartilhe nem versione o arquivo .env.
+`);
+    process.exit(1);
+  }
+  return s;
+}
+
+const SECRET  = carregarSecret();
 const EXPIRES = process.env.JWT_EXPIRES || "8h";
 
 // ── Política de senha ─────────────────────────────────────

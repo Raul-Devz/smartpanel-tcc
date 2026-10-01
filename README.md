@@ -13,7 +13,8 @@ npm install
 
 # 2. Configurar variáveis de ambiente
 cp .env.example .env
-# Edite o .env e troque o JWT_SECRET por uma string aleatória
+# Gere um segredo e cole a linha no .env (o sistema NÃO inicia sem JWT_SECRET forte)
+npm run gerar-secret
 
 # 3. Rodar em desenvolvimento
 npm run dev

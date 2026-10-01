@@ -5,7 +5,8 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "nodemon server.js"
+    "dev": "nodemon server.js",
+    "gerar-secret": "node scripts/gerar-secret.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
