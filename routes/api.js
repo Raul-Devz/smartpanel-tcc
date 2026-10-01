@@ -4,7 +4,7 @@
 const express = require("express");
 const router  = express.Router();
 const { dao } = require("../database");
-const { login, requireAuth, requireRole } = require("../auth");
+const { login, trocarSenha, requireAuth, requireAuthSemTroca, requireRole } = require("../auth");
 const { notificarTicketCritico, notificarTicketResolvido } = require("../email");
 
 let io = null;
@@ -42,7 +42,13 @@ router.post("/auth/login", async (req,res) => {
     res.json(await login(email, senha));
   } catch(e) { res.status(401).json({ erro:e.message }); }
 });
-router.get("/auth/me", requireAuth, (req,res) => res.json(dao.getUsuarioById(req.user.id)));
+router.get("/auth/me", requireAuthSemTroca, (req,res) => res.json(dao.getUsuarioById(req.user.id)));
+router.post("/auth/trocar-senha", requireAuthSemTroca, (req,res) => {
+  try {
+    const { senhaAtual, novaSenha } = req.body || {};
+    res.json(trocarSenha(req.user.id, req.user.email, senhaAtual, novaSenha));
+  } catch(e) { res.status(400).json({ erro:e.message }); }
+});
 
 // ── Status ────────────────────────────────────────────────
 router.get("/status", (_,res) => res.json({ ok:true, uptime:process.uptime(), ts:new Date().toLocaleString("pt-BR") }));
@@ -158,7 +164,7 @@ router.post("/usuarios", requireAuth, requireRole("admin"), (req,res) => {
 router.patch("/usuarios/:id", requireAuth, requireRole("admin"), (req,res) => {
   const { nome,role,senha } = req.body;
   if (nome||role) dao.atualizarUsuario(req.params.id, nome||"", role||"viewer");
-  if (senha)      dao.trocarSenha(req.params.id, senha);
+  if (senha)      dao.redefinirSenha(req.params.id, senha);
   res.json({ ok:true });
 });
 router.delete("/usuarios/:id", requireAuth, requireRole("admin"), (req,res) => {

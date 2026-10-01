@@ -71,136 +71,137 @@ async function init() {
   const SQL = await initSqlJs();
   DB = makeDb(SQL);
   criarTabelas();
+  migrar();
   seed();
   console.log("  ✅ Banco de dados iniciado (sql.js)");
 }
 
 function criarTabelas() {
   DB.run(`
-  create table if not exists setores(
-    id_setor    integer primary key autoincrement,
-    slug        varchar(50) not null unique,
-    nome        varchar(100) not null unique,
-    descricao   varchar(255),
-    ativo       boolean not null default 1,
-    criado_em   timestamp not null default current_timestamp
-);
- 
-create table if not exists usuarios(
-    id_usuario  integer primary key autoincrement,
-    nome        varchar(100) not null,
-    email       varchar(100) not null unique,
-    senha       varchar(100) not null,
-    role        text not null default 'viewer' check(role in ('viewer','editor','admin')),
-    ativo       boolean not null default 1,
-    criado_em   timestamp not null default current_timestamp
-);
- 
-create table if not exists avisos(
-    id_aviso    integer primary key autoincrement,
-    setor       varchar(100) not null,
-    msg         varchar(255) not null,
-    autor       integer references usuarios(id_usuario) on update cascade on delete set null,
-    ativo       boolean not null default 1,
-    criado_em   timestamp not null default current_timestamp
-);
- 
-create table if not exists tickets(
-    id_ticket     integer primary key autoincrement,
-    descricao     varchar(255) not null,
-    setor         varchar(100),
-    prioridade    text not null default 'baixa' check(prioridade in ('baixa','media','alta')),
-    status        text not null default 'aberto' check(status in ('aberto','em andamento','concluido')),
-    solicitante   integer not null references usuarios(id_usuario) on update cascade,
-    resolvido_por integer references usuarios(id_usuario) on update cascade,
-    resolvido_em  timestamp,
-    criado_em     timestamp not null default current_timestamp
-);
- 
-create table if not exists visitantes(
-    id_visitante  integer primary key autoincrement,
-    nome          varchar(100) not null,
-    empresa       varchar(100) not null,
-    destino       varchar(100) not null,
-    entrada       timestamp not null default current_timestamp,
-    saida         timestamp,
-    status        text not null default 'aguardando' check(status in ('aguardando','em visita','concluido')),
-    qr_token      varchar(255) not null unique,
-    data          text not null default (date('now','localtime')),
-    criado_em     timestamp not null default current_timestamp
-);
- 
-create table if not exists logs(
-    id_log      integer primary key autoincrement,
-    tipo        varchar(100) not null,
-    setor       varchar(100) not null default 'sistema',
-    msg         varchar(255) not null,
-    autor       integer references usuarios(id_usuario) on update cascade on delete set null,
-    data        timestamp not null default current_timestamp
-);
- 
-create table if not exists agendamentos(
-    id_agendamento integer primary key autoincrement,
-    setor          varchar(100) not null,
-    titulo         varchar(100) not null,
-    conteudo       varchar(255) not null,
-    hora_inicio    varchar(5) not null,
-    hora_fim       varchar(5) not null,
-    dias           varchar(50) not null, -- lista separada por vírgula, ex: "1,2,3,4,5"
-    ativo          boolean not null default 1,
-    criado_em      timestamp default current_timestamp
-);
- 
-create table if not exists uploads(
-    id_upload   integer primary key autoincrement,
-    nome        varchar(100) not null,
-    arquivo     varchar(255) not null,
-    setor       varchar(100) not null,
-    tipo        text not null default 'outro' check(tipo in ('pdf','doc','img','outro')),
-    criado_em   timestamp not null default current_timestamp
-);
- 
-create table if not exists emails_log(
-    id_email     integer primary key autoincrement,
-    remetente    integer references usuarios(id_usuario) on delete set null,
-    destinatario integer references usuarios(id_usuario) on update cascade,
-    assunto      varchar(100) not null,
-    corpo        varchar(255) not null,
-    status       text not null default 'enviado' check(status in ('enviado','falha')),
-    criado_em    timestamp not null default current_timestamp
-);
- 
-create table if not exists guiches(
-    id_guiche integer primary key autoincrement,
-    setor     varchar(100) not null,
-    nome      varchar(100) not null,
-    ativo     boolean not null default 1,
-    criado_em timestamp not null default current_timestamp
-);
- 
-create table if not exists senhas(
-    id_senha    integer primary key autoincrement,
-    numero      integer not null,
-    prefixo     varchar(10) not null,
-    tipo        text not null default 'normal' check(tipo in ('normal','prioritario')),
-    status      text not null default 'aguardando' check(status in ('aguardando','chamando','concluido','encerrado')),
-    guiche      integer references guiches(id_guiche) on update cascade,
-    data        text not null default (date('now','localtime')),
-    chamada_em  timestamp,
-    criado_em   timestamp not null default current_timestamp
-);
+    CREATE TABLE IF NOT EXISTS usuarios (
+      id        INTEGER PRIMARY KEY AUTOINCREMENT,
+      nome      TEXT    NOT NULL,
+      email     TEXT    NOT NULL UNIQUE,
+      senha     TEXT    NOT NULL,
+      role      TEXT    NOT NULL DEFAULT 'viewer',
+      ativo     INTEGER NOT NULL DEFAULT 1,
+      trocar_senha INTEGER NOT NULL DEFAULT 0,
+      criado_em TEXT    NOT NULL DEFAULT (datetime('now','localtime'))
+    );
+    CREATE TABLE IF NOT EXISTS avisos (
+      id        INTEGER PRIMARY KEY AUTOINCREMENT,
+      setor     TEXT    NOT NULL,
+      msg       TEXT    NOT NULL,
+      autor     TEXT    NOT NULL DEFAULT 'sistema',
+      ativo     INTEGER NOT NULL DEFAULT 1,
+      criado_em TEXT    NOT NULL DEFAULT (datetime('now','localtime'))
+    );
+    CREATE TABLE IF NOT EXISTS tickets (
+      id           INTEGER PRIMARY KEY AUTOINCREMENT,
+      descricao    TEXT    NOT NULL,
+      setor        TEXT    NOT NULL,
+      prioridade   TEXT    NOT NULL DEFAULT 'media',
+      status       TEXT    NOT NULL DEFAULT 'aberto',
+      solicitante  TEXT,
+      resolvido_em TEXT,
+      criado_em    TEXT    NOT NULL DEFAULT (datetime('now','localtime'))
+    );
+    CREATE TABLE IF NOT EXISTS visitantes (
+      id        INTEGER PRIMARY KEY AUTOINCREMENT,
+      nome      TEXT    NOT NULL,
+      empresa   TEXT,
+      destino   TEXT,
+      entrada   TEXT    NOT NULL DEFAULT (time('now','localtime')),
+      saida     TEXT,
+      status    TEXT    NOT NULL DEFAULT 'aguardando',
+      qr_token  TEXT    UNIQUE,
+      data      TEXT    NOT NULL DEFAULT (date('now','localtime')),
+      criado_em TEXT    NOT NULL DEFAULT (datetime('now','localtime'))
+    );
+    CREATE TABLE IF NOT EXISTS logs (
+      id        INTEGER PRIMARY KEY AUTOINCREMENT,
+      tipo      TEXT    NOT NULL,
+      setor     TEXT,
+      msg       TEXT    NOT NULL,
+      autor     TEXT,
+      criado_em TEXT    NOT NULL DEFAULT (datetime('now','localtime'))
+    );
+    CREATE TABLE IF NOT EXISTS agendamentos (
+      id        INTEGER PRIMARY KEY AUTOINCREMENT,
+      setor     TEXT    NOT NULL,
+      titulo    TEXT    NOT NULL,
+      conteudo  TEXT    NOT NULL,
+      hora_ini  TEXT    NOT NULL,
+      hora_fim  TEXT    NOT NULL,
+      dias      TEXT    NOT NULL DEFAULT '1,2,3,4,5',
+      ativo     INTEGER NOT NULL DEFAULT 1,
+      criado_em TEXT    NOT NULL DEFAULT (datetime('now','localtime'))
+    );
+    CREATE TABLE IF NOT EXISTS uploads (
+      id        INTEGER PRIMARY KEY AUTOINCREMENT,
+      nome      TEXT    NOT NULL,
+      arquivo   TEXT    NOT NULL,
+      setor     TEXT,
+      tipo      TEXT    NOT NULL DEFAULT 'imagem',
+      criado_em TEXT    NOT NULL DEFAULT (datetime('now','localtime'))
+    );
+    CREATE TABLE IF NOT EXISTS emails_log (
+      id           INTEGER PRIMARY KEY AUTOINCREMENT,
+      destinatario TEXT    NOT NULL,
+      assunto      TEXT    NOT NULL,
+      corpo        TEXT    NOT NULL,
+      status       TEXT    NOT NULL DEFAULT 'enviado',
+      criado_em    TEXT    NOT NULL DEFAULT (datetime('now','localtime'))
+    );
+    CREATE TABLE IF NOT EXISTS senhas (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      numero     INTEGER NOT NULL,
+      prefixo    TEXT    NOT NULL DEFAULT 'A',
+      tipo       TEXT    NOT NULL DEFAULT 'geral',
+      status     TEXT    NOT NULL DEFAULT 'aguardando',
+      guiche     TEXT,
+      data       TEXT    NOT NULL DEFAULT (date('now','localtime')),
+      chamada_em TEXT,
+      criado_em  TEXT    NOT NULL DEFAULT (datetime('now','localtime'))
+    );
+    CREATE TABLE IF NOT EXISTS guiches (
+      id   INTEGER PRIMARY KEY AUTOINCREMENT,
+      nome TEXT    NOT NULL,
+      ativo INTEGER NOT NULL DEFAULT 1
+    );
   `);
   salvar();
 }
 
+// Bancos criados antes desta versão não têm a coluna trocar_senha
+function migrar() {
+  const cols = DB.all2("PRAGMA table_info(usuarios)").map(c => c.name);
+  if (!cols.includes("trocar_senha")) {
+    DB.run2("ALTER TABLE usuarios ADD COLUMN trocar_senha INTEGER NOT NULL DEFAULT 0");
+    console.log("  🔧 Migração: coluna trocar_senha adicionada");
+  }
+}
+
+// Qualquer conta que ainda use a senha padrão conhecida é obrigada a trocá-la
+function marcarSenhasPadrao() {
+  [["admin@smartpanel.com","admin123"],["ti@smartpanel.com","ti123"]].forEach(([email, padrao]) => {
+    const u = DB.get2("SELECT id,senha,trocar_senha FROM usuarios WHERE email=?", [email]);
+    if (u && !u.trocar_senha && bcrypt.compareSync(padrao, u.senha)) {
+      DB.run2("UPDATE usuarios SET trocar_senha=1 WHERE id=?", [u.id]);
+      console.log(`  🔐 ${email} usa a senha padrão — troca obrigatória no próximo login`);
+    }
+  });
+}
+
 function seed() {
   if (!DB.get2("SELECT id FROM usuarios WHERE email=?", ["admin@smartpanel.com"])) {
-    DB.run2("INSERT INTO usuarios (nome,email,senha,role) VALUES (?,?,?,?)",
+    DB.run2("INSERT INTO usuarios (nome,email,senha,role,trocar_senha) VALUES (?,?,?,?,1)",
       ["Administrador","admin@smartpanel.com", bcrypt.hashSync("admin123",10),"admin"]);
-    DB.run2("INSERT INTO usuarios (nome,email,senha,role) VALUES (?,?,?,?)",
+    DB.run2("INSERT INTO usuarios (nome,email,senha,role,trocar_senha) VALUES (?,?,?,?,1)",
       ["Editor TI","ti@smartpanel.com", bcrypt.hashSync("ti123",10),"editor"]);
-    console.log("  ✅ Usuários: admin@smartpanel.com / admin123");
+    console.log("  ✅ Usuários iniciais criados (troca de senha obrigatória no primeiro login)");
   }
+  marcarSenhasPadrao();
 
   const avisosIni = {
     recepcao:       "👋 Bem-vindo! Retire sua senha e aguarde o atendimento.",
@@ -257,11 +258,14 @@ function getDb() {
 const dao = {
   // Usuários
   getUsuario:      (email)      => getDb().get2("SELECT * FROM usuarios WHERE email=? AND ativo=1", [email]),
-  getUsuarioById:  (id)         => getDb().get2("SELECT id,nome,email,role,criado_em FROM usuarios WHERE id=?", [id]),
-  listarUsuarios:  ()           => getDb().all2("SELECT id,nome,email,role,ativo,criado_em FROM usuarios ORDER BY id"),
-  criarUsuario:    (n,e,s,r)    => getDb().run2("INSERT INTO usuarios (nome,email,senha,role) VALUES (?,?,?,?)", [n,e,bcrypt.hashSync(s,10),r]),
+  getUsuarioById:  (id)         => getDb().get2("SELECT id,nome,email,role,ativo,trocar_senha,criado_em FROM usuarios WHERE id=?", [id]),
+  listarUsuarios:  ()           => getDb().all2("SELECT id,nome,email,role,ativo,trocar_senha,criado_em FROM usuarios ORDER BY id"),
+  criarUsuario:    (n,e,s,r)    => getDb().run2("INSERT INTO usuarios (nome,email,senha,role,trocar_senha) VALUES (?,?,?,?,1)", [n,e,bcrypt.hashSync(s,10),r]),
   atualizarUsuario:(id,n,r)     => getDb().run2("UPDATE usuarios SET nome=?,role=? WHERE id=?", [n,r,id]),
-  trocarSenha:     (id,s)       => getDb().run2("UPDATE usuarios SET senha=? WHERE id=?", [bcrypt.hashSync(s,10),id]),
+  // Redefinição feita por um admin: a senha vira provisória e o usuário deve trocá-la
+  redefinirSenha:  (id,s)       => getDb().run2("UPDATE usuarios SET senha=?,trocar_senha=1 WHERE id=?", [bcrypt.hashSync(s,10),id]),
+  // Troca feita pelo próprio usuário: remove a obrigatoriedade
+  definirSenha:    (id,s)       => getDb().run2("UPDATE usuarios SET senha=?,trocar_senha=0 WHERE id=?", [bcrypt.hashSync(s,10),id]),
   desativarUsuario:(id)         => getDb().run2("UPDATE usuarios SET ativo=0 WHERE id=?", [id]),
 
   // Avisos

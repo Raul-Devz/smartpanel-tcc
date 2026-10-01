@@ -38,6 +38,13 @@ app.use("/api/auth/login", rateLimit({
   standardHeaders:true, legacyHeaders:false,
 }));
 
+// Limite também na troca de senha (evita adivinhar a senha atual com token roubado)
+app.use("/api/auth/trocar-senha", rateLimit({
+  windowMs: 15*60*1000, max:10,
+  message: { erro:"Muitas tentativas. Aguarde 15 minutos." },
+  standardHeaders:true, legacyHeaders:false,
+}));
+
 // ── Rotas ─────────────────────────────────────────────────
 setApiIO(io); setUploadIO(io);
 app.use("/api",        apiRouter);
@@ -205,7 +212,7 @@ async function start() {
   console.log(`   📺  TV Box: http://localhost:${PORT}/tv?setor=recepcao`);
   console.log(`   🎫  Fila:   http://localhost:${PORT}/fila`);
   console.log(`   📡  API:    http://localhost:${PORT}/api/status`);
-  console.log(`\n   Login: admin@smartpanel.com / admin123\n`);
+  console.log(`\n   Login inicial: veja o README (a troca de senha é obrigatória no 1º acesso)\n`);
   });
 }
 

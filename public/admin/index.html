@@ -19,11 +19,12 @@ html,body{height:100%;overflow:hidden}
 body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);display:flex}
 
 /* ── LOGIN SCREEN ── */
-#login-screen{
+#login-screen,#troca-screen{
   position:fixed;inset:0;background:var(--bg);z-index:1000;
   display:flex;align-items:center;justify-content:center;
 }
-#login-screen.hidden{display:none}
+#login-screen.hidden,#troca-screen.hidden{display:none}
+.troca-regras{font-size:11.5px;color:var(--muted);line-height:1.6;margin:0 0 16px;padding-left:18px}
 .login-box{
   background:var(--surface);border:1px solid var(--border2);
   border-radius:16px;padding:40px 44px;width:360px;
@@ -181,13 +182,34 @@ textarea{resize:vertical;min-height:80px}
     </div>
     <div class="login-field">
       <label>Senha</label>
-      <input id="l-senha" type="password" placeholder="••••••••" value="admin123">
+      <input id="l-senha" type="password" placeholder="••••••••" autocomplete="current-password">
     </div>
     <button class="login-btn" onclick="fazerLogin()">Entrar no Sistema</button>
     <div class="login-err" id="login-err"></div>
-    <div style="text-align:center;margin-top:14px;font-size:11px;color:var(--muted)">
-      admin@smartpanel.com / admin123<br>ti@smartpanel.com / ti123
-    </div>
+  </div>
+</div>
+
+<!-- ══ TROCA OBRIGATÓRIA DE SENHA ══ -->
+<div id="troca-screen" class="hidden">
+  <div class="login-box">
+    <div class="login-logo">⬡ SmartPanel</div>
+    <div class="login-sub">Defina sua nova senha</div>
+    <p style="font-size:12.5px;color:var(--muted);margin:0 0 16px;text-align:center">
+      Por segurança, você precisa trocar a senha provisória antes de continuar.
+    </p>
+    <div class="login-field"><label>Senha atual</label>
+      <input id="t-atual" type="password" autocomplete="current-password"></div>
+    <div class="login-field"><label>Nova senha</label>
+      <input id="t-nova" type="password" autocomplete="new-password"></div>
+    <div class="login-field"><label>Confirmar nova senha</label>
+      <input id="t-conf" type="password" autocomplete="new-password"></div>
+    <ul class="troca-regras">
+      <li>Mínimo de 8 caracteres, com letras e números</li>
+      <li>Diferente da senha atual e de senhas comuns</li>
+    </ul>
+    <button class="login-btn" onclick="trocarSenhaObrigatoria()">Salvar e entrar</button>
+    <div class="login-err" id="troca-err"></div>
+    <div style="text-align:center;margin-top:14px"><a href="#" onclick="logout();return false" style="font-size:12px;color:var(--muted)">Cancelar e sair</a></div>
   </div>
 </div>
 
@@ -498,11 +520,55 @@ async function fazerLogin() {
     if (!r.ok) throw new Error(d.erro);
 
     TOKEN = d.token;
-    USER  = d.usuario;
+    USER  = { ...d.usuario, trocarSenha: !!d.trocarSenha };
     localStorage.setItem('sp_token', TOKEN);
     localStorage.setItem('sp_user', JSON.stringify(USER));
 
     document.getElementById('login-screen').classList.add('hidden');
+    if (USER.trocarSenha) {
+      // Senha da tela de login vira a "senha atual" da troca
+      document.getElementById('t-atual').value = senha;
+      mostrarTrocaSenha();
+    } else {
+      initApp();
+    }
+  } catch (e) {
+    errEl.textContent = e.message;
+    errEl.style.display = 'block';
+  }
+}
+
+function mostrarTrocaSenha() {
+  document.getElementById('login-screen').classList.add('hidden');
+  document.getElementById('troca-screen').classList.remove('hidden');
+  const el = document.getElementById(document.getElementById('t-atual').value ? 't-nova' : 't-atual');
+  el.focus();
+}
+
+async function trocarSenhaObrigatoria() {
+  const atual = document.getElementById('t-atual').value;
+  const nova  = document.getElementById('t-nova').value;
+  const conf  = document.getElementById('t-conf').value;
+  const errEl = document.getElementById('troca-err');
+  errEl.style.display = 'none';
+
+  try {
+    if (nova !== conf) throw new Error('A confirmação não confere com a nova senha');
+    const r = await fetch('/api/auth/trocar-senha', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${TOKEN}` },
+      body: JSON.stringify({ senhaAtual: atual, novaSenha: nova }),
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.erro || 'Não foi possível trocar a senha');
+
+    // Token novo, já sem a pendência de troca
+    TOKEN = d.token;
+    USER  = { ...d.usuario, trocarSenha: false };
+    localStorage.setItem('sp_token', TOKEN);
+    localStorage.setItem('sp_user', JSON.stringify(USER));
+    ['t-atual','t-nova','t-conf'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('troca-screen').classList.add('hidden');
     initApp();
   } catch (e) {
     errEl.textContent = e.message;
@@ -510,8 +576,28 @@ async function fazerLogin() {
   }
 }
 
+// Se o servidor disser que a troca é obrigatória (ex.: admin redefiniu a senha com a sessão aberta)
+const _fetchOriginal = window.fetch.bind(window);
+window.fetch = async (...args) => {
+  const resp = await _fetchOriginal(...args);
+  if (resp.status === 403 && String(args[0]).startsWith('/api/') && !String(args[0]).includes('/auth/')) {
+    resp.clone().json().then(d => {
+      if (d?.codigo === 'TROCAR_SENHA' && USER) {
+        USER.trocarSenha = true;
+        localStorage.setItem('sp_user', JSON.stringify(USER));
+        socket?.disconnect();
+        document.getElementById('t-atual').value = '';
+        mostrarTrocaSenha();
+      }
+    }).catch(() => {});
+  }
+  return resp;
+};
+
 // Enter no login
 document.getElementById('l-senha').addEventListener('keydown', e => { if(e.key === 'Enter') fazerLogin(); });
+['t-atual','t-nova','t-conf'].forEach(id =>
+  document.getElementById(id).addEventListener('keydown', e => { if(e.key === 'Enter') trocarSenhaObrigatoria(); }));
 
 function logout() {
   localStorage.removeItem('sp_token');
@@ -552,7 +638,8 @@ function initApp() {
 // Verificar se já logado
 if (TOKEN && USER) {
   document.getElementById('login-screen').classList.add('hidden');
-  initApp();
+  if (USER.trocarSenha) mostrarTrocaSenha();
+  else initApp();
 }
 
 // ─── ESTADO ──────────────────────────────────────

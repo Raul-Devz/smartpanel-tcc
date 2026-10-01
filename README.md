@@ -27,12 +27,14 @@ npm start
 
 ---
 
-## 🔑 Credenciais Padrão
+## 🔑 Primeiro acesso
 
-| Usuário               | Senha    | Role   |
-|-----------------------|----------|--------|
-| admin@smartpanel.com  | admin123 | admin  |
-| ti@smartpanel.com     | ti123    | editor |
+Na primeira execução são criadas duas contas iniciais (`admin@smartpanel.com` e `ti@smartpanel.com`)
+com **senha provisória**, que não é divulgada neste README (consulte o responsável pela instalação).
+
+- No primeiro login, o sistema **obriga a troca da senha** antes de liberar qualquer funcionalidade.
+- Usuários criados por um admin, ou que tiverem a senha redefinida por um admin, também precisam trocá-la no próximo login.
+- Regras da nova senha: mínimo de 8 caracteres, com letras e números, diferente da atual e de senhas comuns.
 
 ---
 
