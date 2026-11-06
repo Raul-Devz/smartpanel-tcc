@@ -10,6 +10,7 @@ const QRCode   = require("qrcode");
 const { dao }  = require("../database");
 const { requireAuth } = require("../auth");
 const { notificarVisitante } = require("../email");
+const os       = require("os");
 
 let io = null;
 const setIO = (i) => { io = i; };
@@ -40,6 +41,22 @@ router.post("/", requireAuth, upload.single("imagem"), (req,res) => {
   res.status(201).json({ ok:true, arquivo:url, nome:nomeDisplay });
 });
 
+// Endereço usado no QR Code. Se o Admin foi aberto por "localhost", o celular não alcançaria o servidor;
+// nesse caso usa-se o IP do servidor na rede local. A variável HOST_PUBLICO (.env) sobrepõe tudo.
+function baseUrl(req) {
+  if (process.env.HOST_PUBLICO) return process.env.HOST_PUBLICO.replace(/\/$/, "");
+  const host = req.get("host") || "";
+  const nomeHost = host.replace(/:\d+$/, "").replace(/^\[|\]$/g, "");
+  if (["localhost", "127.0.0.1", "::1"].includes(nomeHost)) {
+    const porta = process.env.PORT || 3000;
+    // prefere endereços de rede local (192.168.x.x, 10.x.x.x, 172.16–31.x.x) a outros (VPN, adaptadores virtuais)
+    const prioridade = ip => /^192\.168\./.test(ip) ? 0 : /^10\./.test(ip) ? 1 : /^172\.(1[6-9]|2\d|3[01])\./.test(ip) ? 2 : 3;
+    const ips = Object.values(os.networkInterfaces()).flat().filter(i => i && i.family === "IPv4" && !i.internal).map(i => i.address).sort((a, b) => prioridade(a) - prioridade(b));
+    if (ips.length) return `${req.protocol}://${ips[0]}:${porta}`;
+  }
+  return `${req.protocol}://${host}`;
+}
+
 // POST /api/upload/visitante — registra visitante e gera QR
 router.post("/visitante", requireAuth, async (req,res) => {
   try {
@@ -48,7 +65,7 @@ router.post("/visitante", requireAuth, async (req,res) => {
     const token = `${Date.now()}-${Math.random().toString(36).slice(2,8).toUpperCase()}`;
     const result = dao.criarVisitante(nome, empresa||"", destino||"", token);
     const visitante = { id:result.lastInsertRowid, nome, empresa:empresa||"", destino:destino||"", token };
-    const host = `${req.protocol}://${req.get("host")}`;
+    const host = baseUrl(req);
     const urlCheckin = `${host}/checkin?token=${token}`;
     let qrCode = null;
     try { qrCode = await QRCode.toDataURL(urlCheckin, { width:300, margin:2, color:{ dark:"#0d0f14", light:"#ffffff" } }); }

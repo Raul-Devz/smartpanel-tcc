@@ -20,8 +20,20 @@ function snap(dispositivos={}) {
     agendamentos: dao.listarAgendamentos(),
     uploads:      dao.listarUploads(),
     fila:         buildFila(),
-    stats:        { ...dao.getStats(), tvsOnline: Object.values(dispositivos).filter(d=>d.online).length },
+    stats:        { ...dao.getStats(), tvsOnline: Object.values(dispositivos).filter(d=>d.online && d.tipo==="tv").length },
     dispositivos,
+  };
+}
+
+// Versão do snapshot para TVs e telas públicas (sem login, somente leitura): só o que os painéis exibem.
+// Não inclui registros (logs), agendamentos, uploads, lista de aparelhos com IP, nem o código do QR dos visitantes.
+function snapPublico(s) {
+  return {
+    avisos:     s.avisos,
+    tickets:    s.tickets,
+    visitantes: s.visitantes.map(({ qr_token, ...v }) => v),
+    fila:       s.fila,
+    stats:      { tvsOnline: s.stats.tvsOnline },
   };
 }
 
@@ -207,4 +219,4 @@ router.post("/fila/reset", requireAuth, requireRole("admin"), (_,res) => {
   res.json({ ok:true });
 });
 
-module.exports = { router, setIO, snap, buildFila };
+module.exports = { router, setIO, snap, snapPublico, buildFila };

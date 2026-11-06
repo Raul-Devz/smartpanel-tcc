@@ -41,7 +41,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);dis
 .login-err{background:#f871711a;border:1px solid #f871714d;border-radius:6px;padding:10px 14px;font-size:12.5px;color:var(--danger);margin-top:12px;display:none}
 
 /* ── SIDEBAR ── */
-.sidebar{width:var(--sidebar-w);background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0}
+.sidebar{width:var(--sidebar-w);background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto;max-height:100vh}
 .sb-logo{padding:22px 20px 18px;border-bottom:1px solid var(--border)}
 .sb-logo .brand{font-family:'Syne',sans-serif;font-weight:800;font-size:16px;color:var(--accent)}
 .sb-logo .sub{font-size:10px;color:var(--muted);margin-top:2px;letter-spacing:1px;text-transform:uppercase}
@@ -616,7 +616,7 @@ function initApp() {
   }
 
   // Socket com JWT
-  socket = io({ auth: { token: TOKEN }, query: { setor: 'admin', tipo: 'admin', nome: USER?.nome || 'Admin' } });
+  socket = io({ auth: { token: TOKEN }, query: { setor: 'admin', tipo: 'admin', nome: USER?.nome || 'Admin' }, timeout: 5000, reconnectionDelay: 500, reconnectionDelayMax: 3000 });
 
   socket.on('connect', () => { setConn(true); });
   socket.on('disconnect', () => { setConn(false); });

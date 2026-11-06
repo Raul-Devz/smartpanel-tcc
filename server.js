@@ -14,7 +14,7 @@ const { dao, init: initDB }    = require("./database");
 const { verificarTokenSocket } = require("./auth");
 const { notificarTicketCritico, notificarTicketResolvido } = require("./email");
 const { iniciar: iniciarScheduler } = require("./scheduler");
-const { router: apiRouter, setIO: setApiIO, snap, buildFila } = require("./routes/api");
+const { router: apiRouter, setIO: setApiIO, snap, snapPublico, buildFila } = require("./routes/api");
 const { router: uploadRouter, setIO: setUploadIO } = require("./routes/upload");
 
 const app    = express();
@@ -84,6 +84,20 @@ io.on("connection", (socket) => {
   const tipo  = socket.handshake.query.tipo  || "admin";
   const nome  = socket.user?.nome || socket.handshake.query.nome || `Painel-${socket.id.slice(0,4)}`;
 
+  // Eventos que gravam dados exigem login (token JWT no socket). TVs e telas públicas só leem:
+  // o evento enviado sem login é descartado e o cliente recebe "erro:auth".
+  const EVENTOS_DE_ESCRITA = new Set(["aviso:enviar","aviso:broadcast","ticket:novo","ticket:status","visitante:novo","visitante:status"]);
+  socket.use(([evento], next) => {
+    if (EVENTOS_DE_ESCRITA.has(evento) && !socket.user) {
+      console.warn(`  [!] ${evento} recusado: cliente sem login (${tipo}, ${socket.handshake.address})`);
+      socket.emit("erro:auth", { evento, erro: "Login obrigatório" });
+      return;
+    }
+    next();
+  });
+  // Administradores recebem o estado completo; TVs e telas públicas, só o que exibem.
+  const snapPara = () => socket.user ? snap(dispositivos) : snapPublico(snap(dispositivos));
+
   dispositivos[socket.id] = {
     id: socket.id, nome, setor, tipo, online:true,
     ip: socket.handshake.address,
@@ -98,7 +112,7 @@ io.on("connection", (socket) => {
   if (tipo === "tv")      socket.join(`setor:${setor}`);
   if (tipo === "publico") socket.join("fila-publica");
 
-  socket.emit("snapshot", snap(dispositivos));
+  socket.emit("snapshot", snapPara());
   io.to("admins").emit("devices:update", dispositivos);
 
   // ── Avisos ──────────────────────────────────────────────
@@ -178,7 +192,7 @@ io.on("connection", (socket) => {
     socket.emit("pong:tv");
   });
 
-  socket.on("snapshot:request", () => socket.emit("snapshot", snap(dispositivos)));
+  socket.on("snapshot:request", () => socket.emit("snapshot", snapPara()));
 
   // ── Disconnect ───────────────────────────────────────────
   socket.on("disconnect", () => {

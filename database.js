@@ -34,9 +34,9 @@ function makeDb(sqlJs) {
   // run — executa sem retorno (INSERT, UPDATE, DELETE, CREATE)
   db.run2 = function(sql, params = []) {
     this.run(sql, params);
-    salvar();
-    // pegar lastInsertRowid
+    // pegar lastInsertRowid ANTES de salvar(): o export() do sql.js reinicia o banco e zera o valor
     const r = this.exec("SELECT last_insert_rowid() as id");
+    salvar();
     return { lastInsertRowid: r[0]?.values[0][0] ?? null };
   };
 

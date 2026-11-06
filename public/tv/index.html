@@ -148,7 +148,7 @@ const meta = META[SETOR] || {label:SETOR, cor:"#4f8ef7"};
 document.getElementById("h-setor").textContent = meta.label;
 document.documentElement.style.setProperty("--ac", meta.cor);
 
-const socket = io({ query:{ setor:SETOR, tipo:"tv", nome:NOME } });
+const socket = io({ query:{ setor:SETOR, tipo:"tv", nome:NOME }, timeout:5000, reconnectionDelay:500, reconnectionDelayMax:3000 });
 const state  = { avisos:{}, tickets:[], visitantes:[], metricas:{ cpu:42, ram:91, disco:78 } };
 
 socket.on("connect",    () => setConn(true));

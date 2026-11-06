@@ -458,7 +458,7 @@ footer {
 
 <script>
 // ── SOCKET ────────────────────────────────────────────────
-const socket = io({ query: { setor: 'recepcao', tipo: 'publico', nome: 'TV-Fila' } });
+const socket = io({ query: { setor: 'recepcao', tipo: 'publico', nome: 'TV-Fila' }, timeout: 5000, reconnectionDelay: 500, reconnectionDelayMax: 3000 });
 socket.on('connect',    () => setConn(true));
 socket.on('disconnect', () => setConn(false));
 
@@ -514,6 +514,16 @@ function renderFila(data) {
   renderFilaCompleta(data.aguardando || [], data.atendimento || []);
 }
 
+// Os itens da fila podem ser senhas (prefixo + numero, ex.: A001) ou visitantes (nome + entrada).
+function rotuloItem(v) {
+  if (v.prefixo !== undefined && v.numero !== undefined) return v.prefixo + String(v.numero).padStart(3, '0');
+  return (v.nome || '').split(' ')[0];
+}
+function horaItem(v) {
+  if (v.entrada) return v.entrada;
+  return v.criado_em ? String(v.criado_em).slice(11, 16) : '';
+}
+
 function renderFilaCompleta(aguardando, atendimento) {
   const el = document.getElementById('fila-list');
   const count = document.getElementById('fila-count');
@@ -532,9 +542,9 @@ function renderFilaCompleta(aguardando, atendimento) {
   atendimento.forEach(v => {
     html += `<div class="senha-item chamando">
       <div class="senha-pos">●</div>
-      <div class="senha-num" style="color:var(--accent)">${v.nome.split(' ')[0]}</div>
-      <span class="senha-tipo tipo-geral" style="background:#4f8ef720">Em atendimento</span>
-      <span class="senha-time">${v.entrada}</span>
+      <div class="senha-num" style="color:var(--accent)">${rotuloItem(v)}</div>
+      <span class="senha-tipo tipo-geral" style="background:#4f8ef720">${v.guiche ? "Chamada · " + v.guiche : "Em atendimento"}</span>
+      <span class="senha-time">${horaItem(v)}</span>
     </div>`;
   });
 
@@ -543,9 +553,9 @@ function renderFilaCompleta(aguardando, atendimento) {
     const tipos = { geral:'tipo-geral', prioritario:'tipo-prioritario', agendado:'tipo-agendado' };
     html += `<div class="senha-item">
       <div class="senha-pos">${i + 1}</div>
-      <div class="senha-num">${v.nome.split(' ')[0]}</div>
+      <div class="senha-num">${rotuloItem(v)}</div>
       <span class="senha-tipo tipo-geral">Aguardando</span>
-      <span class="senha-time">${v.entrada}</span>
+      <span class="senha-time">${horaItem(v)}</span>
     </div>`;
   });
 

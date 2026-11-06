@@ -82,8 +82,8 @@ function respostaLogin(usuario) {
 
 async function login(email, senha) {
   const usuario = dao.getUsuario(email);
-  if (!usuario)                                  throw new Error("Usuário não encontrado");
-  if (!bcrypt.compareSync(senha, usuario.senha)) throw new Error("Senha incorreta");
+  if (!usuario)                                  throw new Error("E-mail ou senha incorretos");
+  if (!bcrypt.compareSync(senha, usuario.senha)) throw new Error("E-mail ou senha incorretos");
   dao.addLog("sistema", "auth", `Login: ${usuario.nome} (${usuario.role})`, usuario.email);
   return respostaLogin(usuario);
 }
